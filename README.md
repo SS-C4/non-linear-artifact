@@ -7,8 +7,8 @@ blah blah
 - [ ] Lookup table 
 
 ## Running the code
-- `noirup --version 1.0.0-beta.0`
+- `noirup --version nightly` to get the nightly build. The code is tested with verion 1.0.0.beta.7
 - `nargo check (--overwrite)` to (re)generate `Prover.toml`
-- Enter the witness elements in `Prover.toml`
+- Enter the witness element in `Prover.toml`
 - `nargo execute` for witness generation
-- `bb prove -b ./target/simpson.json -w ./target/simpson.gz -o ./target -d` to run the backend and get the circuit size / proving time etc.
+- `bb prove -b ./target/non_linear_approx.json -w ./target/non_linear_approx.gz -o ./target -d` to run the backend and get the circuit size and proving time.
