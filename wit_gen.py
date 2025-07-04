@@ -30,7 +30,7 @@ if __name__ == "__main__":
         order = int(sys.argv[2])
         log_scale = int(sys.argv[3])
     else:
-        print("Usage: python3 wit_gen.py <input> <order> <log_scale>")
+        print("Usage: python3 wit_gen.py <input> <order for NC integration approx> <log_scale for quantization>")
         sys.exit(1)
 
     # Use high precision
@@ -54,19 +54,27 @@ if __name__ == "__main__":
         for i in range(order)
     ]
 
+    # Constants in src/constants.nr
+    with open("src/constants.nr", "w") as f:
+        f.write(f"pub global LOG_S: u32 = {log_scale};\n")
+        f.write(f"pub global S : Field = {scale}; // 2^{log_scale}\n")
+        f.write(f"pub global S_sq : Field = {scale * scale}; // 2^{log_scale * 2}\n")
+        f.write(f"pub global NC_ORDER: u32 = {order};\n")
+        f.write("pub global signs: [Field; NC_ORDER] = [\n")
+        for sign in signs:
+            f.write(f"    {sign},\n")
+        f.write("];\n")
+        f.write("pub global weights: [Field; NC_ORDER] = [\n")
+        for val in quantized_weights:
+            f.write(f"    {val},\n")
+        f.write("];\n")
+
+    # Witness in Prover.toml
     with open("Prover.toml", "w") as f:
         f.write("[wit]\n")
         f.write(f"lhs_inverse = \"{lhs_inverse}\"\n")
         f.write("rhs_inverses = [\n")
         for val in rhs_inverses:
-            f.write(f"    \"{val}\",\n")
-        f.write("]\n")
-        f.write("signs = [\n")
-        for sign in signs:
-            f.write(f"    \"{sign}\",\n")
-        f.write("]\n")
-        f.write("weights = [\n")
-        for val in quantized_weights:
             f.write(f"    \"{val}\",\n")
         f.write("]\n")
         f.write(f"x = \"{quantize(x, scale)}\"\n")

@@ -2,6 +2,6 @@
 name = "non_linear_approx"
 type = "bin"
 authors = [""]
-compiler-version = ">=1.0.0-beta.7"
+compiler-version = ">=1.0.0-beta.6"
 
 [dependencies]
