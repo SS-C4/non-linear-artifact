@@ -30,7 +30,7 @@ if __name__ == "__main__":
         order = int(sys.argv[2])
         log_scale = int(sys.argv[3])
     else:
-        print("Usage: python3 wit_gen.py <input> <order for NC integration approx> <log_scale for quantization>")
+        print("Usage: python3 nc_gen.py <input> <order for NC integration approx> <log_scale for quantization>")
         sys.exit(1)
 
     # Use high precision
@@ -55,7 +55,7 @@ if __name__ == "__main__":
     ]
 
     # Constants in src/constants.nr
-    with open("src/constants.nr", "w") as f:
+    with open("src/nc_int/constants.nr", "w") as f:
         f.write(f"pub global LOG_S: u32 = {log_scale};\n")
         f.write(f"pub global S : Field = {scale}; // 2^{log_scale}\n")
         f.write(f"pub global S_sq : Field = {scale * scale}; // 2^{log_scale * 2}\n")
