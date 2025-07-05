@@ -93,3 +93,5 @@ if __name__ == "__main__":
     print("Quantized x =", qx)
     print("Decomposition:", coeffs)
 
+# TODO: Add the mult results that are checked by check_quantized_mult
+# TODO: Add a witness generator that outputs into Prover.toml

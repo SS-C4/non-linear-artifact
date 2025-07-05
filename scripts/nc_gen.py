@@ -71,7 +71,7 @@ if __name__ == "__main__":
 
     # Witness in Prover.toml
     with open("Prover.toml", "w") as f:
-        f.write("[wit]\n")
+        f.write("[nc_wit]\n")
         f.write(f"lhs_inverse = \"{lhs_inverse}\"\n")
         f.write("rhs_inverses = [\n")
         for val in rhs_inverses:
