@@ -1,6 +1,6 @@
 pub mod constants;
 
-use constants::{LOG_BASE, BASE_POWERS, LOG_S, S, BASE, NUM_TABLES, EXP_TABLES};
+use constants::{LOG_BASE, BASE_POWERS, LOG_S, S, MULT_OPS, NUM_TABLES, EXP_TABLES};
 
 pub struct ExpLookupWitness {
     // Statement
@@ -9,7 +9,7 @@ pub struct ExpLookupWitness {
 
     // Witness
     x_decomp: [Field; NUM_TABLES], // Decomposed input value
-    // TODO: Add the mult results that are checked by check_quantized_mult
+    lookup_mults: [Field; 2 * NUM_TABLES - 1], // Intermediate products for quantized multiplication
 }
 
 fn check_decomp(x: Field, decomp: [Field; NUM_TABLES]) {
@@ -30,9 +30,20 @@ fn check_decomp(x: Field, decomp: [Field; NUM_TABLES]) {
 /// the quantized product is close to the expected value.
 fn check_quantized_mult(a_q: Field, b_q: Field, ab_q: Field) {
     // Multiply and keep the top half
-    // TODO: Add some tolerance: 100 * S or something similar
-    let error = (a_q * b_q - ab_q * S);
+    let error = (a_q * b_q - ab_q * S + 100 * S);
     error.assert_max_bit_size::<LOG_S>();
+}
+
+/// Checks all the intermediate products
+fn check_intermediate_products(lookup_outputs: [Field; NUM_TABLES - 1], 
+                               intermediate_mults: [Field; NUM_TABLES - 1],
+                               claimed_product: Field) {
+    // Check each level of multiplication
+    // The first half are products of the lookup outputs
+    for i in 0..NUM_TABLES / 2 {
+        check_quantized_mult(lookup_outputs[2*i], lookup_outputs[2*i + 1], intermediate_mults[i]);
+    }
+
 }
 
 pub fn check_exp_lookup(wit: ExpLookupWitness) {
@@ -42,7 +53,7 @@ pub fn check_exp_lookup(wit: ExpLookupWitness) {
     // Lookup exp values and reconstruct
     let mut product = 1;
     for i in 0..NUM_TABLES {
-        let coeff = EXP_TABLES[i][wit.x_decomp[i] as u32];
+        // Check that the first NUM_TABLES elements in lookup_mults are the lookup values
         // product *= coeff;
         // TODO: Use check_quantized_mult to check the product
     }

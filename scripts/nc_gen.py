@@ -1,4 +1,5 @@
 import sys
+import toml
 import sympy as sp
 
 minus_one = 21888242871839275222246405745257275088548364400416034343698204186575808495616
@@ -70,12 +71,14 @@ if __name__ == "__main__":
         f.write("];\n")
 
     # Witness in Prover.toml
-    with open("Prover.toml", "w") as f:
-        f.write("[nc_wit]\n")
-        f.write(f"lhs_inverse = \"{lhs_inverse}\"\n")
-        f.write("rhs_inverses = [\n")
-        for val in rhs_inverses:
-            f.write(f"    \"{val}\",\n")
-        f.write("]\n")
-        f.write(f"x = \"{quantize(x, scale)}\"\n")
-        f.write(f"y = \"{quantize(y, scale)}\"\n")
+    with open("Prover.toml", "r+") as f:
+        toml_data = toml.load(f)
+        toml_data["nc_wit"] = {
+            "x": str(quantize(x, scale)),
+            "y": str(quantize(y, scale)),
+            "lhs_inverse": str(lhs_inverse),
+            "rhs_inverses": [str(v) for v in rhs_inverses]
+        }
+        f.seek(0)
+        toml.dump(toml_data, f)
+        f.truncate()
