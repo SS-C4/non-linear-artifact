@@ -71,17 +71,17 @@ def build_binary_tree_multiplication(input_values):
 
     return data_vector, operations
 
-def write_to_constants(tables, scale, base, mult_ops, log_scale):
+def write_to_constants(tables, log_scale, log_base, mult_ops):
     with open("src/exp_lookup/constants.nr", "w") as f:
         f.write(f"pub global LOG_S: u32 = {log_scale};\n")
         f.write(f"pub global S : Field = {scale}; // 2^{log_scale}\n")
-        f.write(f"pub global LOG_BASE: u32 = {log_scale // base};\n")
-        f.write(f"pub global BASE: u32 = {base};\n")
-        f.write(f"pub global MULT_OPS: [[Field; 3]; {len(tables) - 1}] = [\n")
+        f.write(f"pub global LOG_BASE: u32 = {log_scale // log_base};\n")
+        f.write(f"pub global BASE: u32 = {log_base};\n")
+        f.write(f"pub global MULT_OPS: [(Field, Field, Field); {len(tables) - 1}] = [\n")
         for i in range(len(mult_ops)):
-            f.write("    [")
+            f.write("    (")
             f.write(", ".join(str(x) for x in mult_ops[i]))
-            f.write("],\n")
+            f.write("),\n")
         f.write("];\n")
         f.write(f"pub global NUM_TABLES: u32 = {len(tables)};\n")
         f.write(f"pub global BASE_POWERS: [Field; {len(tables)}] = [\n")
@@ -145,5 +145,5 @@ if __name__ == "__main__":
     lookup_outputs = [tables[i][coeffs[i]] for i in range(len(coeffs))]
     data_vector, mult_ops = build_binary_tree_multiplication(lookup_outputs)
 
-    write_to_constants(tables, scale, base, mult_ops, log_scale)
+    write_to_constants(tables, log_scale, log_base, mult_ops)
     update_witness(qx, int(mp.nint(exp(-mpf(x_input)) * scale)), coeffs, data_vector)

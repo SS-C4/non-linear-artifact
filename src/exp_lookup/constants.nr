@@ -1,17 +1,17 @@
 pub global LOG_S: u32 = 100;
 pub global S : Field = 1267650600228229401496703205376; // 2^100
-pub global LOG_BASE: u32 = 0;
-pub global BASE: u32 = 1024;
-pub global MULT_OPS: [[Field; 3]; 9] = [
-    [0, 1, 10],
-    [3, 4, 11],
-    [2, 11, 12],
-    [10, 12, 13],
-    [5, 6, 14],
-    [8, 9, 15],
-    [7, 15, 16],
-    [14, 16, 17],
-    [13, 17, 18],
+pub global LOG_BASE: u32 = 10;
+pub global BASE: u32 = 10;
+pub global MULT_OPS: [(Field, Field, Field); 9] = [
+    (0, 1, 10),
+    (3, 4, 11),
+    (2, 11, 12),
+    (10, 12, 13),
+    (5, 6, 14),
+    (8, 9, 15),
+    (7, 15, 16),
+    (14, 16, 17),
+    (13, 17, 18),
 ];
 pub global NUM_TABLES: u32 = 10;
 pub global BASE_POWERS: [Field; 10] = [
