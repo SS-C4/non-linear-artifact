@@ -75,8 +75,8 @@ def write_to_constants(tables, log_scale, log_base, mult_ops):
     with open("src/exp_lookup/constants.nr", "w") as f:
         f.write(f"pub global LOG_S: u32 = {log_scale};\n")
         f.write(f"pub global S : Field = {scale}; // 2^{log_scale}\n")
-        f.write(f"pub global LOG_BASE: u32 = {log_scale // log_base};\n")
-        f.write(f"pub global BASE: u32 = {log_base};\n")
+        f.write(f"pub global LOG_BASE: u32 = {log_base};\n")
+        f.write(f"pub global BASE: u32 = {base};\n")
         f.write(f"pub global MULT_OPS: [(Field, Field, Field); {len(tables) - 1}] = [\n")
         for i in range(len(mult_ops)):
             f.write("    (")
