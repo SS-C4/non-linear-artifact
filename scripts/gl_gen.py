@@ -1,6 +1,5 @@
 import sys
 import toml
-import sympy as sp
 import mpmath
 
 mpmath.mp.dps = 100
@@ -10,29 +9,22 @@ def quantize(value, scale):
     return int(mpmath.nint(mpmath.mpf(value) * scale))
 
 def gauss_legendre(n):
-    x = sp.symbols('x')
-    Pn = sp.legendre(n, x)
-    roots = sp.solve(Pn, x)
-    Pn_prime = sp.diff(Pn, x)
-
-    weights = []
-    for xi in roots:
-        xi_numeric = xi.evalf(mpmath.mp.dps)
-        dPn = Pn_prime.subs(x, xi_numeric).evalf(mpmath.mp.dps)
-        wi = 2 / ((1 - xi_numeric**2) * dPn**2)
-        weights.append(mpmath.nstr(wi, n=100))
-
-    roots = [mpmath.nstr(xi.evalf(mpmath.mp.dps), n=100) for xi in roots]
+    # Gauss-Legendre roots and weights calculation
+    roots, weights = mpmath.gauss_quadrature(n)
+    
+    # Convert roots and weights to strings with precision of 100 decimal places
+    roots = [mpmath.nstr(root, n=100) for root in roots]
+    weights = [mpmath.nstr(weight, n=100) for weight in weights]
     
     return roots, weights
 
 if __name__ == "__main__":
     if len(sys.argv) > 3:
-        x_input = sys.argv[1]
+        num_inputs = sys.argv[1]
         n_points = int(sys.argv[2])
         log_scale = int(sys.argv[3])
     else:
-        print("Usage: python3 gl_gen.py <input> <number of points for GL quadrature> <log_scale for quantization>")
+        print("Usage: python3 gl_gen.py <num_inputs> <number of points for GL quadrature> <log_scale for quantization>")
         sys.exit(1)
 
     roots, weights = gauss_legendre(n_points)
@@ -47,6 +39,7 @@ if __name__ == "__main__":
     quantized_roots = [str(int(mpmath.mpf(r)) % field_order) for r in quantized_roots]
 
     with open("src/gl_quad/constants.nr", "w") as f:
+        f.write(f"pub global NUM_INPUTS: u32 = {num_inputs};\n")
         f.write(f"pub global LOG_S: u32 = {log_scale};\n")
         f.write(f"pub global S: Field = {scale};\n")
         f.write(f"pub global S_sq: Field = {scale * scale};\n")
@@ -61,30 +54,32 @@ if __name__ == "__main__":
         f.write("];\n")
 
     # Witness generation
-    # y = exp(-x)
-    x_val = mpmath.mpf(x_input)
-    y_val = mpmath.exp(-x_val)
-    x_quantized = quantize(x_val, scale)
-    y_quantized = quantize(y_val, scale)
+    # y = exp(-x) for random x in [0,1] for num_inputs
+    gl_wits = []
+    for i in range(int(num_inputs)):
+        x_input = mpmath.mpf(mpmath.rand())
+        y_input = mpmath.exp(-x_input)
+        x_quantized = quantize(x_input, scale)
+        y_quantized = quantize(y_input, scale)
 
-    ratio = (1 + y_val) / (1 - y_val)
+        ratio = (1 + y_input) / (1 - y_input)
 
-    gl_inverses = []
-    for r in roots:
-        r = mpmath.mpf(r)
-        gl_inverse = 1 / (r + ratio)
-        gl_inverses.append(quantize(gl_inverse, scale))
+        gl_inverses = []
+        for r in roots:
+            r = mpmath.mpf(r)
+            gl_inverse = 1 / (r + ratio)
+            gl_inverses.append(quantize(gl_inverse, scale))
 
-    # Witness in Prover.toml
-    with open("Prover.toml", "r+") as f:
-        toml_data = toml.load(f)
-        toml_data["gl_wit"] = {
+        gl_wits.append({
             "x": str(x_quantized),
             "y": str(y_quantized),
             "ratio": str(quantize(ratio, scale)),
             "gl_inverses": [str(v) for v in gl_inverses]
-        }
+        })
+
+    with open("Prover.toml", "r+") as f:
+        toml_data = toml.load(f)
+        toml_data["gl_wits"] = gl_wits
         f.seek(0)
         toml.dump(toml_data, f)
         f.truncate()
-

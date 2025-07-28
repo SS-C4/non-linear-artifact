@@ -2,7 +2,7 @@ import sys
 import toml
 from mpmath import mp, mpf, exp
 
-mp.dps = 200  # high precision
+mp.dps = 100  # high precision
 
 def quantize_and_decompose(x_str, log_base, log_scale):
     x = mpf(x_str)
@@ -71,8 +71,9 @@ def build_binary_tree_multiplication(input_values):
 
     return data_vector, operations
 
-def write_to_constants(tables, log_scale, log_base, mult_ops):
+def write_to_constants(num_inputs, tables, log_scale, log_base, mult_ops):
     with open("src/exp_lookup/constants.nr", "w") as f:
+        f.write(f"pub global NUM_INPUTS: u32 = {num_inputs};\n")
         f.write(f"pub global LOG_S: u32 = {log_scale};\n")
         f.write(f"pub global S : Field = {scale}; // 2^{log_scale}\n")
         f.write(f"pub global LOG_BASE: u32 = {log_base};\n")
@@ -93,57 +94,48 @@ def write_to_constants(tables, log_scale, log_base, mult_ops):
             f.write("    [{}],\n".format(", ".join(map(str, table))))
         f.write("];\n")
 
-def update_witness(x, y, coeffs, data_vector):
-    with open("Prover.toml", "r+") as f:
-        toml_data = toml.load(f)
-        # Enclose everything in quotes
-        toml_data["exp_wit"] = {
-            "x": str(x),
-            "y": str(y),
-            "x_decomp": [str(c) for c in coeffs],
-            "lookup_mults": [str(v) for v in data_vector],
-        }
-        f.seek(0)
-        toml.dump(toml_data, f)
-        f.truncate()
-        
-def test_exp_lookup(log_base=3, log_scale=12):
-    tables, scale = generate_tables(log_base, log_scale)
-
-    for x_str in ["0.0", "0.125", "0.5", "0.99"]:
-        x = mpf(x_str)
-        qx, coeffs, _, base = quantize_and_decompose(x_str, log_base, log_scale)
-        approx = evaluate_lookup(coeffs, tables, scale)
-        actual = exp(-x)
-        error = abs(approx - actual)
-
-        # print(f"\nTesting x = {x_str}")
-        # print(f"  Quantized x = {qx}")
-        # print(f"  Decomposition = {coeffs}")
-        # print(f"  Lookup approx = {approx}")
-        # print(f"  True exp(-x)  = {actual}")
-        # print(f"  Error         = {error}\n")
-
 if __name__ == "__main__":
     if len(sys.argv) == 4:
-        x_input = sys.argv[1]
+        num_inputs = int(sys.argv[1])
         log_base = int(sys.argv[2])
         log_scale = int(sys.argv[3])
     else:
-        print("Usage: python exp_gen.py <x> <log_base> <log_scale>")
+        print("Usage: python exp_gen.py <num_inputs> <log_base for table size> <log_scale for quantization>")
         sys.exit(1)
 
-
-    test_exp_lookup(log_base, log_scale)
     if log_scale % log_base != 0:
-        print(f"Error: log_scale {log_scale} is not divisible by log_base {log_base}.")
+        print("Error: log_scale must be a multiple of log_base")
         sys.exit(1)
 
-    qx, coeffs, scale, base = quantize_and_decompose(x_input, log_base, log_scale)
-    tables, scale = generate_tables(log_base, log_scale)
+    exp_wits = []
+    for i in range(num_inputs):
+        x_input = mpf(mp.rand())
+        y = exp(-x_input)
 
-    lookup_outputs = [tables[i][coeffs[i]] for i in range(len(coeffs))]
-    data_vector, mult_ops = build_binary_tree_multiplication(lookup_outputs)
+        qx, coeffs, scale, base = quantize_and_decompose(x_input, log_base, log_scale)
+        tables, scale = generate_tables(log_base, log_scale)
 
-    write_to_constants(tables, log_scale, log_base, mult_ops)
-    update_witness(qx, int(mp.nint(exp(-mpf(x_input)) * scale)), coeffs, data_vector)
+        lookup_outputs = [tables[i][coeffs[i]] for i in range(len(coeffs))]
+        data_vector, mult_ops = build_binary_tree_multiplication(lookup_outputs)
+
+        if i == 0:
+            write_to_constants(num_inputs,tables, log_scale, log_base, mult_ops)
+
+        x_quantized = int(mp.nint(mpf(x_input) * scale))
+        y_quantized = int(mp.nint(y * scale))
+
+        exp_wits.append({
+            "x": str(x_quantized),
+            "y": str(y_quantized),
+            "x_decomp": [str(c) for c in coeffs],
+            "lookup_mults": [str(v) for v in data_vector],
+        })
+
+    # Witness in Prover.toml
+    with open("Prover.toml", "r+") as f:
+        toml_data = toml.load(f)
+        toml_data["exp_wits"] = exp_wits
+        f.seek(0)
+        toml.dump(toml_data, f)
+        f.truncate()
+

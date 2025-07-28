@@ -1,3 +1,4 @@
+pub global NUM_INPUTS: u32 = 10;
 pub global LOG_S: u32 = 100;
 pub global S : Field = 1267650600228229401496703205376; // 2^100
 pub global LOG_BASE: u32 = 10;
