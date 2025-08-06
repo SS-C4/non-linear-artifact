@@ -1,4 +1,4 @@
-pub type FUNC_TYPE = super::structs::InverseExponentialWitness;
+pub type FUNC_TYPE = super::structs::ExponentialWitness;
 pub global NUM_INPUTS: u32 = 10;
 pub global LOG_S: u32 = 100;
 pub global S: Field = 1267650600228229401496703205376;

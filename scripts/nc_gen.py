@@ -94,7 +94,7 @@ if __name__ == "__main__":
     # Witness in Prover.toml
     with open("Prover.toml", "r+") as f:
         toml_data = toml.load(f)
-        toml_data["nc_wits"] = nc_wits
+        toml_data["_nc_wits"] = nc_wits
         f.seek(0)
         toml.dump(toml_data, f)
         f.truncate()

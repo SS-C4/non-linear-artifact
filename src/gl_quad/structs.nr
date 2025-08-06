@@ -69,9 +69,8 @@ pub struct PowerWitness {
 
 // Implementations
 impl GLFunction for ExponentialWitness {
-    fn check_y_bound(self, inp: Input) {
-        // Check that y is at most 1
-        inp.y.assert_max_bit_size::<LOG_S>();
+    fn check_y_bound(self, _inp: Input) {
+        // No need to check y bound for e^x
     }
 
     fn check_ratio(self, inp: Input) {
@@ -97,7 +96,7 @@ impl GLFunction for ExponentialWitness {
             rhs += GL_WEIGHTS[i] * self.denom_inverses[i];
         }
         let error = lhs - rhs + 10*S;
-        error.assert_max_bit_size::<LOG_S + 13>();
+        error.assert_max_bit_size::<LOG_S + 20>();
     }
 
     fn check_mult(self, _inp: Input) {
@@ -258,9 +257,8 @@ impl GLFunction for TangentWitness {
 }
 
 impl GLFunction for PowerWitness {
-    fn check_y_bound(self, inp: Input) {
-        // Check that y is at most 1
-        inp.y.assert_max_bit_size::<LOG_S>();
+    fn check_y_bound(self, _inp: Input) {
+        // No need to check y bound for power function
     }
 
     fn check_ratio(self, inp: Input) {

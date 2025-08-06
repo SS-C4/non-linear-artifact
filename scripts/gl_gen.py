@@ -265,7 +265,7 @@ if __name__ == "__main__":
 
     with open("Prover.toml", "r+") as f:
         toml_data = toml.load(f)
-        toml_data["gl_wits"] = gl_wits
+        toml_data["_gl_wits"] = gl_wits
         f.seek(0)
         toml.dump(toml_data, f)
         f.truncate()
