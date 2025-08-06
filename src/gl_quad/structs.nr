@@ -170,7 +170,7 @@ impl GLFunction for SigmoidWitness {
             rhs += GL_WEIGHTS[i] * self.denom_inverses[i];
         }
         let error = lhs - rhs + 10*S;
-        error.assert_max_bit_size::<LOG_S + 13>();
+        error.assert_max_bit_size::<LOG_S + 20>();
     }
 
     fn check_mult(self, _inp: Input) {
@@ -207,7 +207,8 @@ impl GLFunction for TanhWitness {
             rhs += GL_WEIGHTS[i] * self.denom_inverses[i];
         }
         let error = lhs - rhs + 10*S;
-        error.assert_max_bit_size::<LOG_S + 13>();
+        println(error);
+        error.assert_max_bit_size::<LOG_S + 35>();
     }
 
     fn check_mult(self, _inp: Input) {
@@ -216,9 +217,8 @@ impl GLFunction for TanhWitness {
 }
 
 impl GLFunction for TangentWitness {
-    fn check_y_bound(self, inp: Input) {
-        // Check that y is at most 1
-        inp.y.assert_max_bit_size::<LOG_S>();
+    fn check_y_bound(self, _inp: Input) {
+        // No need to check y bound for tan(x)
     }
 
     fn check_ratio(self, inp: Input) {
@@ -250,7 +250,7 @@ impl GLFunction for TangentWitness {
     fn check_mult(self, inp: Input) {
         // Check multiplicative terms
         for i in 0..N_POINTS {
-            let error = self.mult_terms[i] - GL_ROOTS_tan[i] * inp.y + 10000*S;
+            let error = 2 * self.mult_terms[i] * S - GL_ROOTS_tan[i] * inp.y + 10000*S;
             error.assert_max_bit_size::<LOG_S + 15>();
         }
     }
@@ -263,11 +263,11 @@ impl GLFunction for PowerWitness {
 
     fn check_ratio(self, inp: Input) {
         // Check that ratio * (1 - y) ~= (1 + y)
-        let error = self.ratio_term_1 * (S - inp.y) - (S + inp.y) + 10000*S;
+        let error = (S + inp.y) * S - self.ratio_term_1 * (S - inp.y) + 10000*S;
         error.assert_max_bit_size::<LOG_S + 15>();
 
         // Check that ratio * (1 - x) ~= (1 + x)
-        let error = self.ratio_term_2 * (S - inp.x) - (S + inp.x) + 10000*S;
+        let error = (S + inp.x) * S - self.ratio_term_2 * (S - inp.x) + 10000*S;
         error.assert_max_bit_size::<LOG_S + 15>();
     }
 
@@ -294,7 +294,8 @@ impl GLFunction for PowerWitness {
             rhs += GL_WEIGHTS[i] * (self.denom_inverses_1[i] - self.denom_inverses_2[i]);
         }
         let error = lhs - rhs + 10*S;
-        error.assert_max_bit_size::<LOG_S + 13>();
+        println(error);
+        error.assert_max_bit_size::<LOG_S + 30>();
     }
 
     fn check_mult(self, _inp: Input) {

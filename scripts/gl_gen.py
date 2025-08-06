@@ -11,7 +11,7 @@ function_map = {
     "sigmoid": "SigmoidWitness",
     "tanh": "TanhWitness",
     "tan": "TangentWitness",
-    "pow": "PowerWitness"
+    "power": "PowerWitness"
 }
 
 def quantize(value, scale):
@@ -34,7 +34,7 @@ if __name__ == "__main__":
         num_inputs = sys.argv[2]
         n_points = int(sys.argv[3])
         log_scale = int(sys.argv[4])
-        k = int(sys.argv[5])
+        k = sys.argv[5]
 
         if function != "power":
             k = None
@@ -62,7 +62,7 @@ if __name__ == "__main__":
         sys.exit(1)
 
     roots, weights = gauss_legendre(n_points)
-    roots_tan = [(mpmath.mpf(roots[i]) + 1)**2 / 2 for i in range(n_points)]
+    roots_tan = [(mpmath.mpf(roots[i]) + 1)**2 for i in range(n_points)]
     scale = 2 ** log_scale
 
     # Quantize roots and weights
@@ -112,7 +112,7 @@ if __name__ == "__main__":
             y_input = mpmath.tanh(x_input)
         elif function == "tan":
             y_input = mpmath.tan(x_input)
-        elif function == "pow":
+        elif function == "power":
             if k is None:
                 print("Error: The 'power' function requires the additional parameter k.")
                 sys.exit(1)
@@ -147,7 +147,16 @@ if __name__ == "__main__":
                     "denom_inverses": [str(v) for v in gl_inverses]
                 }
             })
-            
+
+            # Compute the sum
+            sum_check = mpmath.mpf(0)
+            for j in range(n_points):
+                w = mpmath.mpf(weights[j])
+                r = mpmath.mpf(roots[j])
+                sum_check += w / (r + ratio)
+
+            print(f"Sum check error: {mpmath.nstr(sum_check - x_input, n=15)}")
+
         elif function == "inv_exp":
             ratio = (1 + y_input) / (1 - y_input)
 
@@ -168,6 +177,15 @@ if __name__ == "__main__":
                     "denom_inverses": [str(v) for v in gl_inverses]
                 }
             })
+
+            # Compute the sum
+            sum_check = mpmath.mpf(0)
+            for j in range(n_points):
+                w = mpmath.mpf(weights[j])
+                r = mpmath.mpf(roots[j])
+                sum_check += w / (r + ratio)
+
+            print(f"Sum check error: {mpmath.nstr(sum_check - x_input, n=15)}")
 
         elif function == "sigmoid":
             ratio = 1 / (2 * y_input - 1)
@@ -190,6 +208,15 @@ if __name__ == "__main__":
                 }
             })
 
+            # Compute the sum
+            sum_check = mpmath.mpf(0)
+            for j in range(n_points):
+                w = mpmath.mpf(weights[j])
+                r = mpmath.mpf(roots[j])
+                sum_check += w / (r + ratio)
+
+            print(f"Sum check error: {mpmath.nstr(sum_check - x_input, n=15)}")
+
         elif function == "tanh":
             ratio = 2 / y_input
 
@@ -211,6 +238,16 @@ if __name__ == "__main__":
                 }
             })
 
+            # Compute the sum
+            sum_check = mpmath.mpf(0)
+            for j in range(n_points):
+                w = mpmath.mpf(weights[j])
+                r = mpmath.mpf(roots[j])
+                sum_check += w / (2 * r + ratio)
+
+            print(f"Input: {mpmath.nstr(x_input, n=15)}")
+            print(f"Sum check error: {mpmath.nstr(sum_check - x_input, n=15)}")
+
         elif function == "tan":
             ratio = 2 / y_input
 
@@ -218,9 +255,9 @@ if __name__ == "__main__":
             mult_terms = []
             for r in roots_tan:
                 r = mpmath.mpf(r)
-                mult_term = y_input / 2 * (r + 1)**2
+                mult_term = (y_input / 2) * r
                 mult_terms.append(quantize(mult_term, scale))
-                gl_inverse = 1 / (y_input / 2 * (r + 1)**2 + ratio)
+                gl_inverse = 1 / ((y_input / 2) * r + ratio)
                 gl_inverses.append(quantize(gl_inverse, scale))
 
             gl_wits.append({
@@ -235,8 +272,17 @@ if __name__ == "__main__":
                     "mult_terms": [str(v) for v in mult_terms]
                 }
             })
-        
-        elif function == "pow":
+
+            # Compute the sum
+            sum_check = mpmath.mpf(0)
+            for j in range(n_points):
+                w = mpmath.mpf(weights[j])
+                r = mpmath.mpf(roots[j])
+                sum_check += w / (y_input / 2 * roots_tan[j] + ratio)
+
+            print(f"Sum check error: {mpmath.nstr(sum_check - x_input, n=15)}")
+
+        elif function == "power":
             ratio_1 = (1 + y_input) / (1 - y_input)
             ratio_2 = (1 + x_input) / (1 - x_input)
 
@@ -245,7 +291,7 @@ if __name__ == "__main__":
             for r in roots:
                 r = mpmath.mpf(r)
                 gl_inverse_1 = 1 / (r + ratio_1)
-                gl_inverse_2 = 1 / (r + ratio_2)
+                gl_inverse_2 = k_input / (r + ratio_2)
                 gl_inverses_1.append(quantize(gl_inverse_1, scale))
                 gl_inverses_2.append(quantize(gl_inverse_2, scale))
 
@@ -262,6 +308,16 @@ if __name__ == "__main__":
                     "denom_inverses_2": [str(v) for v in gl_inverses_2]
                 }
             })
+
+            # Compute the sums
+            sum_check_1 = mpmath.mpf(0)
+            sum_check_2 = mpmath.mpf(0)
+            for j in range(n_points):
+                w = mpmath.mpf(weights[j])
+                r = mpmath.mpf(roots[j])
+                sum_check_1 += w / (r + ratio_1)
+                sum_check_2 += k_input * w / (r + ratio_2)
+            print(f"Sum check error: {mpmath.nstr(sum_check_1 - sum_check_2, n=15)}")
 
     with open("Prover.toml", "r+") as f:
         toml_data = toml.load(f)
