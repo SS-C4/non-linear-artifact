@@ -11,10 +11,10 @@ pub mod exp_lookup;
 use exp_lookup::{ExpLookupWitness, constants::NUM_INPUTS as EXP_NUM};
 
 fn main(_nc_wits: [NC_witness; NC_NUM], _exp_wits: [ExpLookupWitness; EXP_NUM], _gl_wits: [GLWitness<FUNC_TYPE>; GL_NUM]) {
-    // for nc_wit in nc_wits {
-    //     nc_int::check_nc_int(nc_wit);
+    // for nc_wit in _nc_wits {
+    //     check_nc_int(nc_wit);
     // }
-    // for exp_wit in exp_wits {
+    // for exp_wit in _exp_wits {
     //     exp_lookup::check_exp_lookup(exp_wit);
     // }
     for gl_wit in _gl_wits {

@@ -11,7 +11,8 @@ function_map = {
     "sigmoid": "SigmoidWitness",
     "tanh": "TanhWitness",
     "tan": "TangentWitness",
-    "power": "PowerWitness"
+    "power": "PowerWitness",
+    "softmax": "SoftmaxWitness"
 }
 
 def quantize(value, scale):
@@ -28,38 +29,41 @@ def gauss_legendre(n):
     return roots, weights
 
 if __name__ == "__main__":
-    if len(sys.argv) >= 6:
-        # Parse the arguments when there are 6 or more arguments
-        function = sys.argv[1]
-        num_inputs = sys.argv[2]
-        n_points = int(sys.argv[3])
-        log_scale = int(sys.argv[4])
-        k = sys.argv[5]
+    if len(sys.argv) < 5:
+        print("Usage: python3 gl_gen.py <function> <num_inputs> <n_points> <log_scale> [<k> if function is 'power'] [<dim_softmax> if function is 'softmax']")
+        print("\nArguments:")
+        print("  <function>        : 'exp', 'inv_exp', 'sigmoid', 'tanh', 'tan', 'power', 'softmax'.")
+        print("  <num_inputs>      : Number of inputs required for the function.")
+        print("  <n_points>        : Number of points for GL quadrature (integer).")
+        print("  <log_scale>       : Log scale for quantization (integer).")
+        print("  <k>               : Required if function is 'power'.")
+        print("  <dim_softmax>     : Required if function is 'softmax'.")
+        sys.exit(1)
 
-        if function != "power":
-            k = None
+    # Parse required arguments
+    function = sys.argv[1]
+    num_inputs = sys.argv[2]
+    n_points = int(sys.argv[3])
+    log_scale = int(sys.argv[4])
 
-    elif len(sys.argv) == 5:
-        # Parse the arguments when there are exactly 5 arguments
-        function = sys.argv[1]
-        num_inputs = sys.argv[2]
-        n_points = int(sys.argv[3])
-        log_scale = int(sys.argv[4])
-        k = None
+    k = None
+    dim_softmax = None
 
-        if function == "power":
+    # Check optional arguments based on function
+    if function == "power":
+        if len(sys.argv) < 6:
             print("Error: The 'power' function requires the additional parameter k.")
             sys.exit(1)
+        k = sys.argv[5]
 
-    else:
-        print("Usage: python3 gl_gen.py <function> <num_inputs> <n_points> <log_scale> [<k> if function is 'power']")
-        print("\nArguments:")
-        print("  <function>        : Available options are 'exp', 'inv_exp', 'sigmoid', 'tanh', 'tan', and 'power'.")
-        print("  <num_inputs>      : The number of inputs required for the function.")
-        print("  <n_points>        : The number of points for GL quadrature (integer).")
-        print("  <log_scale>       : Log scale for quantization (integer).")
-        print("  <k>               : If function is 'power', provide an additional parameter k.")
-        sys.exit(1)
+    elif function == "softmax":
+        if len(sys.argv) < 6:
+            print("Error: The 'softmax' function requires the additional parameter dim_softmax.")
+            sys.exit(1)
+        dim_softmax = sys.argv[5]
+
+    elif len(sys.argv) > 5:
+        print("Warning: Extra arguments ignored.")
 
     roots, weights = gauss_legendre(n_points)
     roots_tan = [(mpmath.mpf(roots[i]) + 1)**2 for i in range(n_points)]
@@ -82,6 +86,7 @@ if __name__ == "__main__":
         f.write(f"pub global S: Field = {scale};\n")
         f.write(f"pub global S_sq: Field = {scale * scale};\n")
         f.write(f"pub global N_POINTS: u32 = {n_points};\n")
+        f.write(f"pub global N_SOFTMAX: u32 = {dim_softmax if dim_softmax is not None else 1};\n")
         f.write("pub global GL_ROOTS: [Field; N_POINTS] = [\n")
         for r in quantized_roots:
             f.write(f"    {int(mpmath.mpf(r))},\n")
@@ -101,6 +106,8 @@ if __name__ == "__main__":
     gl_wits = []
     for i in range(int(num_inputs)):
         x_input = mpmath.mpf(mpmath.rand())
+
+        softmax_inputs = [mpmath.mpf(mpmath.rand()) for _ in range(int(dim_softmax))] if function == "softmax" else None
         
         if function == "exp":
             y_input = mpmath.exp(x_input)
@@ -117,12 +124,23 @@ if __name__ == "__main__":
                 print("Error: The 'power' function requires the additional parameter k.")
                 sys.exit(1)
             y_input = mpmath.power(x_input, k)
+        elif function == "softmax":
+            if dim_softmax is None:
+                print("Error: The 'softmax' function requires the additional parameter dim_softmax.")
+                sys.exit(1)
+            exp_values = [mpmath.exp(inp) for inp in softmax_inputs]
+            sum_exp = sum(exp_values)
+            softmax_outputs = [val / sum_exp for val in exp_values]
         else:
             print(f"Error: Unknown function '{function}'.")
             sys.exit(1)
         
-        x_quantized = quantize(x_input, scale)
-        y_quantized = quantize(y_input, scale)
+        if function != "softmax":
+            x_quantized = quantize(x_input, scale)
+            y_quantized = quantize(y_input, scale)
+        else:
+            x_quantized = [quantize(x, scale) for x in softmax_inputs]
+            y_quantized = [quantize(y, scale) for y in softmax_outputs]
 
         k_input = mpmath.mpf(k) if k is not None else None
         k_quantized = quantize(k_input, scale) if k_input is not None else None
@@ -140,6 +158,8 @@ if __name__ == "__main__":
                 "inp_struct": {
                     "x": str(x_quantized),
                     "y": str(y_quantized),
+                    "vec_x": [str(x_quantized)],
+                    "vec_y": [str(y_quantized)],
                     "k": str(k_quantized) if k_quantized is not None else "0"
                 },
                 "wit_struct": {
@@ -170,6 +190,8 @@ if __name__ == "__main__":
                 "inp_struct": {
                     "x": str(x_quantized),
                     "y": str(y_quantized),
+                    "vec_x": [str(x_quantized)],
+                    "vec_y": [str(y_quantized)],
                     "k": str(k_quantized) if k_quantized is not None else "0"
                 },
                 "wit_struct": {
@@ -200,6 +222,8 @@ if __name__ == "__main__":
                 "inp_struct": {
                     "x": str(x_quantized),
                     "y": str(y_quantized),
+                    "vec_x": [str(x_quantized)],
+                    "vec_y": [str(y_quantized)],
                     "k": str(k_quantized) if k_quantized is not None else "0"
                 },
                 "wit_struct": {
@@ -230,6 +254,8 @@ if __name__ == "__main__":
                 "inp_struct": {
                     "x": str(x_quantized),
                     "y": str(y_quantized),
+                    "vec_x": [str(x_quantized)],
+                    "vec_y": [str(y_quantized)],
                     "k": str(k_quantized) if k_quantized is not None else "0"
                 },
                 "wit_struct": {
@@ -264,6 +290,8 @@ if __name__ == "__main__":
                 "inp_struct": {
                     "x": str(x_quantized),
                     "y": str(y_quantized),
+                    "vec_x": [str(x_quantized)],
+                    "vec_y": [str(y_quantized)],
                     "k": str(k_quantized) if k_quantized is not None else "0"
                 },
                 "wit_struct": {
@@ -299,6 +327,8 @@ if __name__ == "__main__":
                 "inp_struct": {
                     "x": str(x_quantized),
                     "y": str(y_quantized),
+                    "vec_x": [str(x_quantized)],
+                    "vec_y": [str(y_quantized)],
                     "k": str(k_quantized) if k_quantized is not None else "0"
                 },
                 "wit_struct": {
@@ -317,7 +347,40 @@ if __name__ == "__main__":
                 r = mpmath.mpf(roots[j])
                 sum_check_1 += w / (r + ratio_1)
                 sum_check_2 += k_input * w / (r + ratio_2)
+            print(f"Input x: {mpmath.nstr(x_input, n=15)}")
             print(f"Sum check error: {mpmath.nstr(sum_check_1 - sum_check_2, n=15)}")
+
+        elif function == "softmax":
+            exp_witnesses = []
+            for i in range(int(dim_softmax)):
+                # Create exp_witness for each dimension
+                ratio = (softmax_outputs[i] + 1) / (softmax_outputs[i] - 1)
+                gl_inverses = []
+                for r in roots:
+                    r = mpmath.mpf(r)
+                    gl_inverse = 1 / (r + ratio)
+                    gl_inverses.append(quantize(gl_inverse, scale))
+                exp_witnesses.append({
+                    "ratio_term": str(quantize(ratio, scale)),
+                    "denom_inverses": [str(v) for v in gl_inverses]
+                })
+
+            denom_inverse = quantize(1 / sum_exp, scale)
+            
+            gl_wits.append({
+                "inp_struct": {
+                    "x": "0",
+                    "y": "0",
+                    "vec_x": [str(x) for x in x_quantized],
+                    "vec_y": [str(y) for y in y_quantized],
+                    "k": str(k_quantized) if k_quantized is not None else "0"
+                },
+                "wit_struct": {
+                    "exp_witnesses": exp_witnesses,
+                    "exp_outputs": [str(quantize(val, scale)) for val in exp_values],
+                    "denom_inverse": str(denom_inverse)
+                }
+            })
 
     with open("Prover.toml", "r+") as f:
         toml_data = toml.load(f)
