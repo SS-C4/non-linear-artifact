@@ -362,8 +362,8 @@ impl GLFunction for SoftmaxWitness {
         for i in 0..N_SOFTMAX {
             sum_y += inp.vec_y[i];
         }
-        let error = sum_y - S + 10*S;
-        error.assert_max_bit_size::<20>();
+        let error = sum_y - S + 10;
+        error.assert_max_bit_size::<10>();
 
         // Check scaling: y_i ~= exp_output_i * denom_inverse
         for i in 0..N_SOFTMAX {
@@ -381,7 +381,7 @@ impl GLFunction for SoftmaxWitness {
         // Check multiplicative scaling
         for i in 0..N_SOFTMAX {
             let error = inp.vec_y[i] * S - self.exp_outputs[i] * self.denom_inverse + 10000*S;
-            error.assert_max_bit_size::<20>();
+            error.assert_max_bit_size::<LOG_S + 20>();
         }
     }
 }

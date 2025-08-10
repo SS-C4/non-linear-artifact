@@ -354,7 +354,8 @@ if __name__ == "__main__":
             exp_witnesses = []
             for i in range(int(dim_softmax)):
                 # Create exp_witness for each dimension
-                ratio = (softmax_outputs[i] + 1) / (softmax_outputs[i] - 1)
+                ratio = (exp_values[i] + 1) / (exp_values[i] - 1)
+
                 gl_inverses = []
                 for r in roots:
                     r = mpmath.mpf(r)
