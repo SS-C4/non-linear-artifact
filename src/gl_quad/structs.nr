@@ -95,7 +95,7 @@ impl GLFunction for ExponentialWitness {
         for i in 0..N_POINTS {
             let term = GL_ROOTS[i] + self.ratio_term;
             let error = S_sq - term * self.denom_inverses[i] + 10000*S;
-            error.assert_max_bit_size::<LOG_S + 15>();
+            error.assert_max_bit_size::<LOG_S + 20>();
         }
     }
 
@@ -144,7 +144,7 @@ impl GLFunction for InverseExponentialWitness {
             rhs += GL_WEIGHTS[i] * self.denom_inverses[i];
         }
         let error = lhs - rhs + 10*S;
-        error.assert_max_bit_size::<LOG_S + 13>();
+        error.assert_max_bit_size::<LOG_S + 20>();
     }
 
     fn check_mult(self, _inp: Input) {

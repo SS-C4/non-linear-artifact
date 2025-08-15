@@ -15,6 +15,10 @@ def quantize_and_decompose(x_str, log_base, log_scale):
     while temp > 0:
         coeffs.append(temp % base)
         temp //= base
+
+    # Ensure we have len(coeffs) == log_scale // log_base by padding with zeros
+    while len(coeffs) < log_scale // log_base:
+        coeffs.append(0)
     return qx, coeffs, scale, base
 
 def generate_tables(log_base, log_scale):
@@ -71,9 +75,10 @@ def build_binary_tree_multiplication(input_values):
 
     return data_vector, operations
 
-def write_to_constants(num_inputs, tables, log_scale, log_base, mult_ops):
+def write_to_constants(num_inputs, softmax_size, tables, log_scale, log_base, mult_ops):
     with open("src/exp_lookup/constants.nr", "w") as f:
         f.write(f"pub global NUM_INPUTS: u32 = {num_inputs};\n")
+        f.write(f"pub global NUM_SOFTMAX: u32 = {softmax_size};\n")
         f.write(f"pub global LOG_S: u32 = {log_scale};\n")
         f.write(f"pub global S : Field = {scale}; // 2^{log_scale}\n")
         f.write(f"pub global LOG_BASE: u32 = {log_base};\n")
@@ -95,47 +100,121 @@ def write_to_constants(num_inputs, tables, log_scale, log_base, mult_ops):
         f.write("];\n")
 
 if __name__ == "__main__":
-    if len(sys.argv) == 4:
-        num_inputs = int(sys.argv[1])
-        log_base = int(sys.argv[2])
-        log_scale = int(sys.argv[3])
-    else:
-        print("Usage: python exp_gen.py <num_inputs> <log_base for table size> <log_scale for quantization>")
+    if len(sys.argv) < 5:
+        print("Usage: python exp_gen.py <func> <num_inputs> <log_base> <log_scale> [<softmax_size> if func is 'softmax']")
         sys.exit(1)
+
+    func = sys.argv[1]
+
+    try:
+        num_inputs = int(sys.argv[2])
+        log_base = int(sys.argv[3])
+        log_scale = int(sys.argv[4])
+    except ValueError:
+        print("Error: <num_inputs>, <log_base>, and <log_scale> must be integers")
+        sys.exit(1)
+
+    softmax_size = None
+    if func == "softmax":
+        if len(sys.argv) != 6:
+            print("Error: 'softmax' function requires <softmax_size> argument.")
+            sys.exit(1)
+        try:
+            softmax_size = int(sys.argv[5])
+        except ValueError:
+            print("Error: <softmax_size> must be an integer")
+            sys.exit(1)
+    else:
+        if len(sys.argv) != 5:
+            print("Error: Only 'softmax' takes a <softmax_size> argument.")
+            sys.exit(1)
 
     if log_scale % log_base != 0:
         print("Error: log_scale must be a multiple of log_base")
         sys.exit(1)
 
-    exp_wits = []
-    for i in range(num_inputs):
-        x_input = mpf(mp.rand())
-        y = exp(-x_input)
-
-        qx, coeffs, scale, base = quantize_and_decompose(x_input, log_base, log_scale)
+    if func == "inv_exp":
+        exp_wits = []
         tables, scale = generate_tables(log_base, log_scale)
 
-        lookup_outputs = [tables[i][coeffs[i]] for i in range(len(coeffs))]
-        data_vector, mult_ops = build_binary_tree_multiplication(lookup_outputs)
+        for i in range(num_inputs):
+            x_input = mpf(mp.rand())
+            y = exp(-x_input)
 
-        if i == 0:
-            write_to_constants(num_inputs,tables, log_scale, log_base, mult_ops)
+            qx, coeffs, scale, base = quantize_and_decompose(x_input, log_base, log_scale)
 
-        x_quantized = int(mp.nint(mpf(x_input) * scale))
-        y_quantized = int(mp.nint(y * scale))
+            lookup_outputs = [tables[i][coeffs[i]] for i in range(len(coeffs))]
+            data_vector, mult_ops = build_binary_tree_multiplication(lookup_outputs)
 
-        exp_wits.append({
-            "x": str(x_quantized),
-            "y": str(y_quantized),
-            "x_decomp": [str(c) for c in coeffs],
-            "lookup_mults": [str(v) for v in data_vector],
-        })
+            if i == 0:
+                softmax_size = 1  # Not used for inv_exp
+                write_to_constants(num_inputs, softmax_size, tables, log_scale, log_base, mult_ops)
 
-    # Witness in Prover.toml
-    with open("Prover.toml", "r+") as f:
-        toml_data = toml.load(f)
-        toml_data["_exp_wits"] = exp_wits
-        f.seek(0)
-        toml.dump(toml_data, f)
-        f.truncate()
+            x_quantized = int(mp.nint(mpf(x_input) * scale))
+            y_quantized = int(mp.nint(y * scale))
+
+            exp_wits.append({
+                "x": str(x_quantized),
+                "y": str(y_quantized),
+                "x_decomp": [str(c) for c in coeffs],
+                "lookup_mults": [str(v) for v in data_vector],
+            })
+
+        # Witness in Prover.toml
+        with open("Prover.toml", "r+") as f:
+            toml_data = toml.load(f)
+            toml_data["_exp_wits"] = exp_wits
+            f.seek(0)
+            toml.dump(toml_data, f)
+            f.truncate()
+
+    elif func == "softmax":
+        softmax_wits = []
+        tables, scale = generate_tables(log_base, log_scale)
+
+        for i in range(num_inputs):
+            vec_x = [mpf(mp.rand()) for _ in range(softmax_size)]
+            exp_vals = [exp(-x) for x in vec_x]
+            sum_exp = sum(exp_vals)
+            sum_inv = 1 / sum_exp
+            vec_y = [ev / sum_exp for ev in exp_vals]
+
+            exp_wits = []
+            for j in range(softmax_size):
+                x_input = vec_x[j]
+                y = exp_vals[j]
+
+                qx, coeffs, scale, base = quantize_and_decompose(x_input, log_base, log_scale)
+
+                lookup_outputs = [tables[i][coeffs[i]] for i in range(len(coeffs))]
+                data_vector, mult_ops = build_binary_tree_multiplication(lookup_outputs)
+
+                if i == 0 and j == 0:
+                    write_to_constants(num_inputs, softmax_size, tables, log_scale, log_base, mult_ops)
+
+                x_quantized = int(mp.nint(mpf(x_input) * scale))
+                y_quantized = int(mp.nint(y * scale))
+
+                exp_wits.append({
+                    "x": str(x_quantized),
+                    "y": str(y_quantized),
+                    "x_decomp": [str(c) for c in coeffs],
+                    "lookup_mults": [str(v) for v in data_vector],
+                })
+
+            sum_inv_quantized = int(mp.nint(mpf(sum_inv) * scale))
+            softmax_wits.append({
+                "vec_x": [str(int(mp.nint(mpf(x) * scale))) for x in vec_x],
+                "vec_y": [str(int(mp.nint(mpf(y) * scale))) for y in vec_y],
+                "exp_wits": exp_wits,
+                "sum_inverse": str(sum_inv_quantized),
+            })
+
+        # Witness in Prover.toml
+        with open("Prover.toml", "r+") as f:
+            toml_data = toml.load(f)
+            toml_data["_softmax_wits"] = softmax_wits
+            f.seek(0)
+            toml.dump(toml_data, f)
+            f.truncate()
 

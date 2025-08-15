@@ -1,6 +1,6 @@
 pub mod constants;
 
-use constants::{LOG_BASE, BASE_POWERS, LOG_S, S, MULT_OPS, NUM_TABLES, EXP_TABLES};
+use constants::{LOG_BASE, BASE_POWERS, LOG_S, S, MULT_OPS, NUM_TABLES, NUM_SOFTMAX, EXP_TABLES};
 
 pub struct ExpLookupWitness {
     // Statement
@@ -10,6 +10,16 @@ pub struct ExpLookupWitness {
     // Witness
     x_decomp: [Field; NUM_TABLES], // Decomposed input value
     lookup_mults: [Field; 2 * NUM_TABLES - 1], // Intermediate products for quantized multiplication
+}
+
+pub struct SoftMaxLookupWitness {
+    // Statement
+    vec_x: [Field; NUM_SOFTMAX], // Input vector
+    vec_y: [Field; NUM_SOFTMAX], // Output vector = softmax(vec_x)
+
+    // Witnesses
+    exp_wits: [ExpLookupWitness; NUM_SOFTMAX], // Exponential lookup witnesses
+    sum_inverse: Field,        // Inverse of the sum of exponentials
 }
 
 fn check_decomp(x: Field, decomp: [Field; NUM_TABLES]) {
@@ -63,4 +73,26 @@ pub fn check_exp_lookup(wit: ExpLookupWitness) {
     // Output range check
     let error = (wit.y - wit.lookup_mults[2 * NUM_TABLES - 2] + 100);
     error.assert_max_bit_size::<10>();
+}
+
+pub fn check_softmax_lookup(wit: SoftMaxLookupWitness) {
+    // Check each exp lookup
+    for i in 0..NUM_SOFTMAX {
+        check_exp_lookup(wit.exp_wits[i]);
+    }
+
+    // Check sum ~= 1
+    let mut sum_exp = 0;
+    for i in 0..NUM_SOFTMAX {
+        sum_exp += wit.vec_y[i];
+    }
+    let error = (sum_exp - S + 100);
+    error.assert_max_bit_size::<10>();
+
+    // Check scaling y_i = exp(x_i) * sum_inverse
+    for i in 0..NUM_SOFTMAX {
+        let expected = wit.exp_wits[i].y * wit.sum_inverse;
+        let error = (wit.vec_y[i] * S - expected + 10000 * S);
+        error.assert_max_bit_size::<LOG_S + 20>();
+    }
 }
