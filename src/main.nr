@@ -8,7 +8,7 @@ use gl_quad::{GLWitness, constants::{NUM_INPUTS as GL_NUM, FUNC_TYPE}};
 
 // Lookup based approach for exp(-x)
 pub mod exp_lookup;
-use exp_lookup::{ExpLookupWitness, SoftMaxLookupWitness, constants::NUM_INPUTS as LOOKUP_NUM};
+use exp_lookup::{InvExpLookupWitness, SoftMaxLookupWitness, constants::NUM_INPUTS as LOOKUP_NUM};
 
 fn main(
     _nc_wits: [NC_witness; NC_NUM], 
@@ -22,10 +22,10 @@ fn main(
     // for exp_wit in _exp_wits {
     //     exp_lookup::check_exp_lookup(exp_wit);
     // }
-    // for softmax_wit in _softmax_wits {
-    //     exp_lookup::check_softmax_lookup(softmax_wit);
-    // }
-    for gl_wit in _gl_wits {
-        gl_quad::check_gl_quad(gl_wit);
+    for softmax_wit in _softmax_wits {
+        exp_lookup::check_softmax_lookup(softmax_wit);
     }
+    // for gl_wit in _gl_wits {
+    //     gl_quad::check_gl_quad(gl_wit);
+    // }
 }

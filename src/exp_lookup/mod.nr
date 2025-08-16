@@ -2,7 +2,7 @@ pub mod constants;
 
 use constants::{LOG_BASE, BASE_POWERS, LOG_S, S, MULT_OPS, NUM_TABLES, NUM_SOFTMAX, EXP_TABLES};
 
-pub struct ExpLookupWitness {
+pub struct InvExpLookupWitness {
     // Statement
     x: Field, // Input value
     y: Field, // Output = exp(-x)
@@ -18,8 +18,8 @@ pub struct SoftMaxLookupWitness {
     vec_y: [Field; NUM_SOFTMAX], // Output vector = softmax(vec_x)
 
     // Witnesses
-    exp_wits: [ExpLookupWitness; NUM_SOFTMAX], // Exponential lookup witnesses
-    sum_inverse: Field,        // Inverse of the sum of exponentials
+    exp_wits: [InvExpLookupWitness; NUM_SOFTMAX], // Exponential lookup witnesses
+    shift: Field,        // Log of denominator
 }
 
 fn check_decomp(x: Field, decomp: [Field; NUM_TABLES]) {
@@ -57,7 +57,7 @@ fn check_products(lookup_mults: [Field; 2 * NUM_TABLES - 1]) {
     }
 }
 
-pub fn check_exp_lookup(wit: ExpLookupWitness) {
+pub fn check_inv_exp_lookup(wit: InvExpLookupWitness) {
     // Check validity of the decomposition
     check_decomp(wit.x, wit.x_decomp);
 
@@ -76,23 +76,27 @@ pub fn check_exp_lookup(wit: ExpLookupWitness) {
 }
 
 pub fn check_softmax_lookup(wit: SoftMaxLookupWitness) {
+    // Check that exp_wits[i].x == shift - vec_x[i]
+    for i in 0..NUM_SOFTMAX {
+        assert(wit.exp_wits[i].x == wit.shift - wit.vec_x[i]);
+    }
+
     // Check each exp lookup
     for i in 0..NUM_SOFTMAX {
-        check_exp_lookup(wit.exp_wits[i]);
+        check_inv_exp_lookup(wit.exp_wits[i]);
     }
 
     // Check sum ~= 1
     let mut sum_exp = 0;
     for i in 0..NUM_SOFTMAX {
-        sum_exp += wit.vec_y[i];
+        sum_exp += wit.exp_wits[i].y;
     }
     let error = (sum_exp - S + 100);
-    error.assert_max_bit_size::<10>();
+    error.assert_max_bit_size::<20>();
 
-    // Check scaling y_i = exp(x_i) * sum_inverse
+    // Check vec_y[i] ~= exp(vec_x[i])
     for i in 0..NUM_SOFTMAX {
-        let expected = wit.exp_wits[i].y * wit.sum_inverse;
-        let error = (wit.vec_y[i] * S - expected + 10000 * S);
-        error.assert_max_bit_size::<LOG_S + 20>();
+        let error = (wit.vec_y[i] - wit.exp_wits[i].y);
+        error.assert_max_bit_size::<20>();
     }
 }

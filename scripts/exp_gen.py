@@ -3,6 +3,7 @@ import toml
 from mpmath import mp, mpf, exp
 
 mp.dps = 100  # high precision
+field_order = 21888242871839275222246405745257275088548364400416034343698204186575808495617
 
 def quantize_and_decompose(x_str, log_base, log_scale):
     x = mpf(x_str)
@@ -24,7 +25,7 @@ def quantize_and_decompose(x_str, log_base, log_scale):
 def generate_tables(log_base, log_scale):
     scale = 2 ** log_scale
     base = 2 ** log_base
-    num_tables = log_scale // log_base
+    num_tables = log_scale // log_base + 1
 
     tables = []
     for i in range(num_tables):
@@ -174,15 +175,20 @@ if __name__ == "__main__":
 
         for i in range(num_inputs):
             vec_x = [mpf(mp.rand()) for _ in range(softmax_size)]
-            exp_vals = [exp(-x) for x in vec_x]
+            exp_vals = [exp(x) for x in vec_x]
             sum_exp = sum(exp_vals)
-            sum_inv = 1 / sum_exp
+            shift = mp.log(sum_exp)
             vec_y = [ev / sum_exp for ev in exp_vals]
+
+            shift_quantized = int(mp.nint(shift * scale))
+            vec_x_quantized = [int(mp.nint(mpf(x) * scale)) for x in vec_x]
+            vec_y_quantized = [int(mp.nint(mpf(y) * scale)) for y in vec_y]
 
             exp_wits = []
             for j in range(softmax_size):
-                x_input = vec_x[j]
-                y = exp_vals[j]
+                x_quantized = shift_quantized - vec_x_quantized[j]
+                x_input = mpf(x_quantized) / scale
+                y = vec_y[j]
 
                 qx, coeffs, scale, base = quantize_and_decompose(x_input, log_base, log_scale)
 
@@ -192,7 +198,7 @@ if __name__ == "__main__":
                 if i == 0 and j == 0:
                     write_to_constants(num_inputs, softmax_size, tables, log_scale, log_base, mult_ops)
 
-                x_quantized = int(mp.nint(mpf(x_input) * scale))
+                # x_quantized = int(mp.nint(mpf(x_input) * scale))
                 y_quantized = int(mp.nint(y * scale))
 
                 exp_wits.append({
@@ -202,12 +208,12 @@ if __name__ == "__main__":
                     "lookup_mults": [str(v) for v in data_vector],
                 })
 
-            sum_inv_quantized = int(mp.nint(mpf(sum_inv) * scale))
+            shift_quantized = int(mp.nint(shift * scale))
             softmax_wits.append({
-                "vec_x": [str(int(mp.nint(mpf(x) * scale))) for x in vec_x],
-                "vec_y": [str(int(mp.nint(mpf(y) * scale))) for y in vec_y],
+                "vec_x": [str(xq) for xq in vec_x_quantized],
+                "vec_y": [str(yq) for yq in vec_y_quantized],
                 "exp_wits": exp_wits,
-                "sum_inverse": str(sum_inv_quantized),
+                "shift": str(shift_quantized),
             })
 
         # Witness in Prover.toml
