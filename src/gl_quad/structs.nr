@@ -73,8 +73,9 @@ pub struct PowerWitness {
 
 // y = softmax(x)
 pub struct SoftmaxWitness {
-    pub inv_exp_witnesses: [InverseExponentialWitness; N_SOFTMAX],
-    pub shift: Field,
+    pub exp_witnesses: [ExponentialWitness; N_SOFTMAX],
+    pub exp_outputs: [Field; N_SOFTMAX],
+    pub denom_inverse: Field,
 }
 
 // Implementations
@@ -142,8 +143,8 @@ impl GLFunction for InverseExponentialWitness {
         for i in 0..N_POINTS {
             rhs += GL_WEIGHTS[i] * self.denom_inverses[i];
         }
-        let error = lhs - rhs + 10000*S;
-        error.assert_max_bit_size::<LOG_S + 90>();
+        let error = lhs - rhs + 10*S;
+        error.assert_max_bit_size::<LOG_S + 20>();
     }
 
     fn check_mult(self, _inp: Input) {
@@ -321,9 +322,9 @@ impl GLFunction for SoftmaxWitness {
     fn check_ratio(self, inp: Input) {
         // Exp ratio checks
         for i in 0..N_SOFTMAX {
-            self.inv_exp_witnesses[i].check_ratio(Input {
-                x: self.shift - inp.vec_x[i],
-                y: inp.vec_y[i],
+            self.exp_witnesses[i].check_ratio(Input {
+                x: inp.vec_x[i],
+                y: self.exp_outputs[i],
                 vec_x: inp.vec_x,
                 vec_y: inp.vec_y,
                 k: 0,
@@ -334,9 +335,9 @@ impl GLFunction for SoftmaxWitness {
     fn check_inverse(self, inp: Input) {
         // Exp inverse checks
         for i in 0..N_SOFTMAX {
-            self.inv_exp_witnesses[i].check_inverse(Input {
-                x: self.shift - inp.vec_x[i],
-                y: inp.vec_y[i],
+            self.exp_witnesses[i].check_inverse(Input {
+                x: inp.vec_x[i],
+                y: self.exp_outputs[i],
                 vec_x: inp.vec_x,
                 vec_y: inp.vec_y,
                 k: 0,
@@ -347,9 +348,9 @@ impl GLFunction for SoftmaxWitness {
     fn check_sum(self, inp: Input) {
         // Exp sum checks
         for i in 0..N_SOFTMAX {
-            self.inv_exp_witnesses[i].check_sum(Input {
-                x: self.shift - inp.vec_x[i],
-                y: inp.vec_y[i],
+            self.exp_witnesses[i].check_sum(Input {
+                x: inp.vec_x[i],
+                y: self.exp_outputs[i],
                 vec_x: inp.vec_x,
                 vec_y: inp.vec_y,
                 k: 0,
@@ -363,9 +364,24 @@ impl GLFunction for SoftmaxWitness {
         }
         let error = sum_y - S + 10;
         error.assert_max_bit_size::<10>();
+
+        // Check scaling: y_i ~= exp_output_i * denom_inverse
+        for i in 0..N_SOFTMAX {
+            self.check_mult(Input {
+                x: inp.vec_x[i],
+                y: inp.vec_y[i],
+                vec_x: inp.vec_x,
+                vec_y: inp.vec_y,
+                k: 0,
+            });
+        }
     }
 
-    fn check_mult(self, _inp: Input) {
-        // No multiplicative checks needed for softmax
+    fn check_mult(self, inp: Input) {
+        // Check multiplicative scaling
+        for i in 0..N_SOFTMAX {
+            let error = inp.vec_y[i] * S - self.exp_outputs[i] * self.denom_inverse + 10000*S;
+            error.assert_max_bit_size::<LOG_S + 20>();
+        }
     }
 }

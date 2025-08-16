@@ -128,14 +128,9 @@ if __name__ == "__main__":
             if dim_softmax is None:
                 print("Error: The 'softmax' function requires the additional parameter dim_softmax.")
                 sys.exit(1)
-
             exp_values = [mpmath.exp(inp) for inp in softmax_inputs]
             sum_exp = sum(exp_values)
-            shift = mpmath.log(sum_exp)
             softmax_outputs = [val / sum_exp for val in exp_values]
-
-            shifted_inputs = [inp - shift for inp in softmax_inputs]
-            shifted_exp_values = [mpmath.exp(inp) for inp in shifted_inputs]
         else:
             print(f"Error: Unknown function '{function}'.")
             sys.exit(1)
@@ -356,32 +351,22 @@ if __name__ == "__main__":
             print(f"Sum check error: {mpmath.nstr(sum_check_1 - sum_check_2, n=15)}")
 
         elif function == "softmax":
-            inv_exp_witnesses = []
+            exp_witnesses = []
             for i in range(int(dim_softmax)):
                 # Create exp_witness for each dimension
-                ratio = (shifted_exp_values[i] + 1) / (1 - shifted_exp_values[i])
+                ratio = (exp_values[i] + 1) / (exp_values[i] - 1)
 
                 gl_inverses = []
                 for r in roots:
                     r = mpmath.mpf(r)
                     gl_inverse = 1 / (r + ratio)
                     gl_inverses.append(quantize(gl_inverse, scale))
-
-                inv_exp_witnesses.append({
+                exp_witnesses.append({
                     "ratio_term": str(quantize(ratio, scale)),
                     "denom_inverses": [str(v) for v in gl_inverses]
                 })
 
-                # Compute the sum for checking
-                sum_check = mpmath.mpf(0)
-                for j in range(n_points):
-                    w = mpmath.mpf(weights[j])
-                    r = mpmath.mpf(roots[j])
-                    sum_check += w / (r + ratio)
-                
-                print(f"Sum check error: {mpmath.nstr(sum_check + shifted_inputs[i], n=15)}")
-
-            shift_quantized = quantize(shift, scale)
+            denom_inverse = quantize(1 / sum_exp, scale)
             
             gl_wits.append({
                 "inp_struct": {
@@ -392,8 +377,9 @@ if __name__ == "__main__":
                     "k": str(k_quantized) if k_quantized is not None else "0"
                 },
                 "wit_struct": {
-                    "inv_exp_witnesses": inv_exp_witnesses,
-                    "shift": str(shift_quantized)
+                    "exp_witnesses": exp_witnesses,
+                    "exp_outputs": [str(quantize(val, scale)) for val in exp_values],
+                    "denom_inverse": str(denom_inverse)
                 }
             })
 
