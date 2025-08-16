@@ -22,10 +22,10 @@ fn main(
     // for exp_wit in _exp_wits {
     //     exp_lookup::check_exp_lookup(exp_wit);
     // }
-    for softmax_wit in _softmax_wits {
-        exp_lookup::check_softmax_lookup(softmax_wit);
-    }
-    // for gl_wit in _gl_wits {
-    //     gl_quad::check_gl_quad(gl_wit);
+    // for softmax_wit in _softmax_wits {
+    //     exp_lookup::check_softmax_lookup(softmax_wit);
     // }
+    for gl_wit in _gl_wits {
+        gl_quad::check_gl_quad(gl_wit);
+    }
 }
