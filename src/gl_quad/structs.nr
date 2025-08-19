@@ -241,16 +241,16 @@ impl GLFunction for TangentWitness {
 
     fn check_ratio(self, inp: Input) {
         // Check that ratio * y ~= 2
-        let error = 2*S_sq - self.ratio_term * inp.y + 10000*S;
-        error.assert_max_bit_size::<LOG_S + 15>();
+        let error = 2*S_sq - self.ratio_term * inp.y + 512*S;
+        error.assert_max_bit_size::<LOG_S + 10>();
     }
 
     fn check_inverse(self, _inp: Input) {
         // Check inverses
         for i in 0..N_POINTS {
             let term = self.mult_terms[i] + self.ratio_term;
-            let error = S_sq - term * self.denom_inverses[i] + 10000*S;
-            error.assert_max_bit_size::<LOG_S + 15>();
+            let error = S_sq - term * self.denom_inverses[i] + 512*S;
+            error.assert_max_bit_size::<LOG_S + 10>();
         }
     }
 
@@ -262,14 +262,14 @@ impl GLFunction for TangentWitness {
             rhs += GL_WEIGHTS[i] * self.denom_inverses[i];
         }
         let error = lhs - rhs + 10*S;
-        error.assert_max_bit_size::<LOG_S + 13>();
+        error.assert_max_bit_size::<LOG_S + 4>();
     }
 
     fn check_mult(self, inp: Input) {
         // Check multiplicative terms
         for i in 0..N_POINTS {
-            let error = 2 * self.mult_terms[i] * S - GL_ROOTS_tan[i] * inp.y + 10000*S;
-            error.assert_max_bit_size::<LOG_S + 15>();
+            let error = 2 * self.mult_terms[i] * S - GL_ROOTS_tan[i] * inp.y + 512*S;
+            error.assert_max_bit_size::<LOG_S + 10>();
         }
     }
 }
@@ -302,8 +302,8 @@ impl GLFunction for CosineWitness {
         });
 
         // Check sqrt_1_p_tan2 * self.y ~= 1
-        let error = self.sqrt_1_p_tan2 * inp.y - S_sq + 2048*S;
-        error.assert_max_bit_size::<LOG_S + 13>();
+        let error = self.sqrt_1_p_tan2 * inp.y - S_sq + 512*S;
+        error.assert_max_bit_size::<LOG_S + 10>();
     }
 
     fn check_sum(self, inp: Input) {
@@ -328,8 +328,8 @@ impl GLFunction for CosineWitness {
         });
 
         // Check that sqrt_1_p_tan2 * sqrt_1_p_tan2 ~= 1 + wit.tan_x^2
-        let error = self.sqrt_1_p_tan2 * self.sqrt_1_p_tan2 - (S_sq + self.tan_x * self.tan_x) + 2048*S;
-        error.assert_max_bit_size::<LOG_S + 13>();
+        let error = self.sqrt_1_p_tan2 * self.sqrt_1_p_tan2 - (S_sq + self.tan_x * self.tan_x) + 512*S;
+        error.assert_max_bit_size::<LOG_S + 10>();
     }
 }
 
