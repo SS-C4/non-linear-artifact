@@ -11,6 +11,7 @@ function_map = {
     "sigmoid": "SigmoidWitness",
     "tanh": "TanhWitness",
     "tan": "TangentWitness",
+    "cos": "CosineWitness",
     "power": "PowerWitness",
     "softmax": "SoftmaxWitness"
 }
@@ -32,7 +33,7 @@ if __name__ == "__main__":
     if len(sys.argv) < 5:
         print("Usage: python3 gl_gen.py <function> <num_inputs> <n_points> <log_scale> [<k> if function is 'power'] [<dim_softmax> if function is 'softmax']")
         print("\nArguments:")
-        print("  <function>        : 'exp', 'inv_exp', 'sigmoid', 'tanh', 'tan', 'power', 'softmax'.")
+        print("  <function>        : 'exp', 'inv_exp', 'sigmoid', 'tanh', 'tan', 'cos', 'power', 'softmax'.")
         print("  <num_inputs>      : Number of inputs required for the function.")
         print("  <n_points>        : Number of points for GL quadrature (integer).")
         print("  <log_scale>       : Log scale for quantization (integer).")
@@ -119,6 +120,8 @@ if __name__ == "__main__":
             y_input = mpmath.tanh(x_input)
         elif function == "tan":
             y_input = mpmath.tan(x_input)
+        elif function == "cos":
+            y_input = mpmath.cos(x_input)
         elif function == "power":
             if k is None:
                 print("Error: The 'power' function requires the additional parameter k.")
@@ -301,14 +304,41 @@ if __name__ == "__main__":
                 }
             })
 
-            # Compute the sum
-            sum_check = mpmath.mpf(0)
-            for j in range(n_points):
-                w = mpmath.mpf(weights[j])
-                r = mpmath.mpf(roots[j])
-                sum_check += w / (y_input / 2 * roots_tan[j] + ratio)
 
-            print(f"Sum check error: {mpmath.nstr(sum_check - x_input, n=15)}")
+        elif function == "cos":
+            tan_x = mpmath.tan(x_input)
+            # tan part
+            ratio = 2 / tan_x
+
+            gl_inverses = []
+            mult_terms = []
+            for r in roots_tan:
+                r = mpmath.mpf(r)
+                mult_term = (tan_x / 2) * r
+                mult_terms.append(quantize(mult_term, scale))
+                gl_inverse = 1 / ((tan_x / 2) * r + ratio)
+                gl_inverses.append(quantize(gl_inverse, scale))
+
+            tan_wit = {
+                "ratio_term": str(quantize(ratio, scale)),
+                "denom_inverses": [str(v) for v in gl_inverses],
+                "mult_terms": [str(v) for v in mult_terms]
+            }
+
+            gl_wits.append({
+                "inp_struct": {
+                    "x": str(x_quantized),
+                    "y": str(y_quantized),
+                    "vec_x": [str(x_quantized)],
+                    "vec_y": [str(y_quantized)],
+                    "k": str(k_quantized) if k_quantized is not None else "0"
+                },
+                "wit_struct": {
+                    "tan_x": str(quantize(tan_x, scale)),
+                    "tan_witness": tan_wit,
+                    "sqrt_1_p_tan2": str(quantize(mpmath.sqrt(1 + tan_x**2), scale))
+                }
+            })
 
         elif function == "power":
             ratio_1 = (1 + y_input) / (1 - y_input)

@@ -40,8 +40,8 @@ fn check_decomp(x: Field, decomp: [Field; NUM_TABLES]) {
 /// the quantized product is close to the expected value.
 fn check_quantized_mult(a_q: Field, b_q: Field, ab_q: Field) {
     // Multiply and keep the top half
-    let error = (a_q * b_q - ab_q * S + 100 * S);
-    error.assert_max_bit_size::<LOG_S + 60>();
+    let error = (a_q * b_q - ab_q * S + 16 * S);
+    error.assert_max_bit_size::<LOG_S + 5>();
 }
 
 /// Checks all the intermediate products
@@ -71,8 +71,8 @@ pub fn check_inv_exp_lookup(wit: InvExpLookupWitness) {
     check_products(wit.lookup_mults);
 
     // Output range check
-    let error = (wit.y - wit.lookup_mults[2 * NUM_TABLES - 2] + 100);
-    error.assert_max_bit_size::<10>();
+    let error = (wit.y - wit.lookup_mults[2 * NUM_TABLES - 2] + 16);
+    error.assert_max_bit_size::<5>();
 }
 
 pub fn check_softmax_lookup(wit: SoftMaxLookupWitness) {
@@ -91,12 +91,12 @@ pub fn check_softmax_lookup(wit: SoftMaxLookupWitness) {
     for i in 0..NUM_SOFTMAX {
         sum_exp += wit.exp_wits[i].y;
     }
-    let error = (sum_exp - S + 100);
-    error.assert_max_bit_size::<20>();
+    let error = (sum_exp - S + 8);
+    error.assert_max_bit_size::<4>();
 
     // Check vec_y[i] ~= exp(vec_x[i])
     for i in 0..NUM_SOFTMAX {
         let error = (wit.vec_y[i] - wit.exp_wits[i].y);
-        error.assert_max_bit_size::<20>();
+        error.assert_max_bit_size::<4>();
     }
 }
