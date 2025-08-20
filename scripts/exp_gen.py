@@ -22,10 +22,10 @@ def quantize_and_decompose(x_str, log_base, log_scale):
         coeffs.append(0)
     return qx, coeffs, scale, base
 
-def generate_tables(log_base, log_scale):
+def generate_tables(log_base, log_scale, is_softmax=False):
     scale = 2 ** log_scale
     base = 2 ** log_base
-    num_tables = log_scale // log_base + 1
+    num_tables = log_scale // log_base + (1 if is_softmax else 0)
 
     tables = []
     for i in range(num_tables):
@@ -136,7 +136,7 @@ if __name__ == "__main__":
 
     if func == "inv_exp":
         exp_wits = []
-        tables, scale = generate_tables(log_base, log_scale)
+        tables, scale = generate_tables(log_base, log_scale, is_softmax=False)
 
         for i in range(num_inputs):
             x_input = mpf(mp.rand())
@@ -171,7 +171,7 @@ if __name__ == "__main__":
 
     elif func == "softmax":
         softmax_wits = []
-        tables, scale = generate_tables(log_base, log_scale)
+        tables, scale = generate_tables(log_base, log_scale, is_softmax=True)
 
         for i in range(num_inputs):
             vec_x = [mpf(mp.rand()) for _ in range(softmax_size)]

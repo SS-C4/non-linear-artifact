@@ -12,20 +12,20 @@ use exp_lookup::{InvExpLookupWitness, SoftMaxLookupWitness, constants::NUM_INPUT
 
 fn main(
     _nc_wits: [NC_witness; NC_NUM], 
-    // _exp_wits: [ExpLookupWitness; LOOKUP_NUM], 
+    _exp_wits: [InvExpLookupWitness; LOOKUP_NUM], 
     _gl_wits: [GLWitness<FUNC_TYPE>; GL_NUM], 
-    _softmax_wits: [SoftMaxLookupWitness; LOOKUP_NUM]
+    // _softmax_wits: [SoftMaxLookupWitness; LOOKUP_NUM]
 ) {
     // for nc_wit in _nc_wits {
     //     check_nc_int(nc_wit);
     // }
-    // for exp_wit in _exp_wits {
-    //     exp_lookup::check_exp_lookup(exp_wit);
-    // }
+    for exp_wit in _exp_wits {
+        exp_lookup::check_inv_exp_lookup(exp_wit);
+    }
     // for softmax_wit in _softmax_wits {
     //     exp_lookup::check_softmax_lookup(softmax_wit);
     // }
-    for gl_wit in _gl_wits {
-        gl_quad::check_gl_quad(gl_wit);
-    }
+    // for gl_wit in _gl_wits {
+    //     gl_quad::check_gl_quad(gl_wit);
+    // }
 }
