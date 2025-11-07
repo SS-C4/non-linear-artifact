@@ -1,6 +1,6 @@
 pub mod constants;
 
-use constants::{LINEAR_COEFFS, PIECE_SIZE, LOG_SCALE, SCALE, START_POINTS};
+use constants::{LINEAR_COEFFS, LOG_SCALE, SCALE, START_POINTS};
 
 pub struct PWLWitness {
     // Statement
