@@ -1,6 +1,6 @@
 pub mod constants;
 
-use constants::{LOG_BASE, BASE_POWERS, LOG_S, S, MULT_OPS, NUM_TABLES, NUM_SOFTMAX, EXP_TABLES};
+use constants::{LOG_BASE, BASE_POWERS, LOG_S, S, MULT_OPS, NUM_TABLES, NUM_SOFTMAX, EXP_TABLES, COSINE_TABLE};
 
 pub struct InvExpLookupWitness {
     // Statement
@@ -20,6 +20,12 @@ pub struct SoftMaxLookupWitness {
     // Witnesses
     exp_wits: [InvExpLookupWitness; NUM_SOFTMAX], // Exponential lookup witnesses
     shift: Field,        // Log of denominator
+}
+
+pub struct CosineWitness {
+    // Statement
+    x: Field, // Input value
+    y: Field, // Output = cos(x)
 }
 
 fn check_decomp(x: Field, decomp: [Field; NUM_TABLES]) {
@@ -99,4 +105,11 @@ pub fn check_softmax_lookup(wit: SoftMaxLookupWitness) {
         let error = (wit.vec_y[i] - wit.exp_wits[i].y);
         error.assert_max_bit_size::<4>();
     }
+}
+
+pub fn check_cosine_lookup(wit: CosineWitness) {
+    // One lookup call to a cosine table
+    // Cannot decompose cosine unless using a half angle formula like cos(2x) = 2cos^2(x) - 1
+    // but this only reduces the table size by a factor of 2
+    assert(wit.y == COSINE_TABLE[wit.x as u32]);
 }

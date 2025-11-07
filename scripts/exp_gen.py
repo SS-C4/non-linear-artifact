@@ -38,6 +38,15 @@ def generate_tables(log_base, log_scale, is_softmax=False):
         tables.append(row)
     return tables, scale
 
+def generate_cosine_table(log_scale):
+    scale = 2 ** log_scale
+    table = []
+    for j in range(scale):
+        val = mp.cos(mpf(j) / scale)
+        qval = int(mp.nint(val * scale))
+        table.append(qval)
+    return table, scale
+
 def evaluate_lookup(coeffs, tables, scale):
     product = 1
     for i, ai in enumerate(coeffs):
@@ -76,7 +85,7 @@ def build_binary_tree_multiplication(input_values):
 
     return data_vector, operations
 
-def write_to_constants(num_inputs, softmax_size, tables, log_scale, log_base, mult_ops):
+def write_to_constants(num_inputs, softmax_size, tables, cosine_table, log_scale, log_base, mult_ops):
     with open("src/exp_lookup/constants.nr", "w") as f:
         f.write(f"pub global NUM_INPUTS: u32 = {num_inputs};\n")
         f.write(f"pub global NUM_SOFTMAX: u32 = {softmax_size};\n")
@@ -84,7 +93,7 @@ def write_to_constants(num_inputs, softmax_size, tables, log_scale, log_base, mu
         f.write(f"pub global S : Field = {scale}; // 2^{log_scale}\n")
         f.write(f"pub global LOG_BASE: u32 = {log_base};\n")
         f.write(f"pub global BASE: u32 = {base};\n")
-        f.write(f"pub global MULT_OPS: [(Field, Field, Field); {len(tables) - 1}] = [\n")
+        f.write(f"pub global MULT_OPS: [(Field, Field, Field); {len(mult_ops)}] = [\n")
         for i in range(len(mult_ops)):
             f.write("    (")
             f.write(", ".join(str(x) for x in mult_ops[i]))
@@ -98,6 +107,9 @@ def write_to_constants(num_inputs, softmax_size, tables, log_scale, log_base, mu
         f.write("pub global EXP_TABLES: [[Field; {}]; {}] = [\n".format(base, len(tables)))
         for table in tables:
             f.write("    [{}],\n".format(", ".join(map(str, table))))
+        f.write("];\n")
+        f.write("pub global COSINE_TABLE: [Field; {}] = [\n".format(len(cosine_table)))
+        f.write("    {},\n".format(", ".join(map(str, cosine_table))))
         f.write("];\n")
 
 if __name__ == "__main__":
@@ -130,6 +142,9 @@ if __name__ == "__main__":
             print("Error: Only 'softmax' takes a <softmax_size> argument.")
             sys.exit(1)
 
+    if func == "cosine":
+        assert log_base == log_scale, "For cosine, log_base must equal log_scale"
+
     if log_scale % log_base != 0:
         print("Error: log_scale must be a multiple of log_base")
         sys.exit(1)
@@ -149,7 +164,7 @@ if __name__ == "__main__":
 
             if i == 0:
                 softmax_size = 1  # Not used for inv_exp
-                write_to_constants(num_inputs, softmax_size, tables, log_scale, log_base, mult_ops)
+                write_to_constants(num_inputs, softmax_size, tables, [], log_scale, log_base, mult_ops)
 
             x_quantized = int(mp.nint(mpf(x_input) * scale))
             y_quantized = int(mp.nint(y * scale))
@@ -196,7 +211,7 @@ if __name__ == "__main__":
                 data_vector, mult_ops = build_binary_tree_multiplication(lookup_outputs)
 
                 if i == 0 and j == 0:
-                    write_to_constants(num_inputs, softmax_size, tables, log_scale, log_base, mult_ops)
+                    write_to_constants(num_inputs, softmax_size, tables, [], log_scale, log_base, mult_ops)
 
                 # x_quantized = int(mp.nint(mpf(x_input) * scale))
                 y_quantized = int(mp.nint(y * scale))
@@ -223,4 +238,32 @@ if __name__ == "__main__":
             f.seek(0)
             toml.dump(toml_data, f)
             f.truncate()
+
+    elif func == "cosine":
+        cosine_wits = []
+        table, scale = generate_cosine_table(log_scale)
+
+        for i in range(num_inputs):
+            x_input = mpf(mp.rand())
+            y = mp.cos(x_input)
+            x_quantized = int(mp.nint(x_input * scale))
+            y_quantized = int(mp.nint(y * scale))
+
+            cosine_wits.append({
+                "x": str(x_quantized),
+                "y": str(y_quantized),
+            })
+
+            if i == 0:
+                softmax_size = 1  # Not used for cosine
+                base = 2 ** log_base
+                write_to_constants(num_inputs, softmax_size, [], table, log_scale, log_base, [(0,0,0)])
+
+        with open("Prover.toml", "r+") as f:
+            toml_data = toml.load(f)
+            toml_data["_cosine_wits"] = cosine_wits
+            f.seek(0)
+            toml.dump(toml_data, f)
+            f.truncate()
+
 
