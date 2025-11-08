@@ -17,9 +17,9 @@ use poly_approx::{constants::NUM_INPUTS as POLY_NUM, PolyWitness};
 fn main(
     // _exp_wits: [InvExpLookupWitness; LOOKUP_NUM],
     // _cosine_wits: [CosineWitness; LOOKUP_NUM],
-    // _gl_wits: [GLWitness<FUNC_TYPE>; GL_NUM],
+    _gl_wits: [GLWitness<FUNC_TYPE>; GL_NUM],
     // _pwl_wits: [PWLWitness; PWL_NUM],
-    _poly_wits: [PolyWitness; POLY_NUM],
+    // _poly_wits: [PolyWitness; POLY_NUM],
     // _softmax_wits: [SoftMaxLookupWitness; LOOKUP_NUM]
 ) {
     // for exp_wit in _exp_wits {
@@ -28,15 +28,15 @@ fn main(
     // for cosine_wit in _cosine_wits {
     //     exp_lookup::check_cosine_lookup(cosine_wit);
     // }
-    // for gl_wit in _gl_wits {
-    //     gl_quad::check_gl_quad(gl_wit);
-    // }
+    for gl_wit in _gl_wits {
+        gl_quad::check_gl_quad(gl_wit);
+    }
     // for pwl_wit in _pwl_wits {
     //     pwl::check_pwl_approx(pwl_wit);
     // }
-    for poly_wit in _poly_wits {
-        poly_approx::check_poly_approx(poly_wit);
-    }
+    // for poly_wit in _poly_wits {
+    //     poly_approx::check_poly_approx(poly_wit);
+    // }
     // for softmax_wit in _softmax_wits {
     //     exp_lookup::check_softmax_lookup(softmax_wit);
     // }

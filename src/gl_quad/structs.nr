@@ -58,7 +58,7 @@ pub struct TanhWitness {
 
 // y = tan(x)
 pub struct TangentWitness {
-    pub ratio_term: Field, 
+    pub y_sq: Field, 
     pub denom_inverses: [Field; N_POINTS],
     pub mult_terms: [Field; N_POINTS],
 }
@@ -240,17 +240,21 @@ impl GLFunction for TangentWitness {
     }
 
     fn check_ratio(self, inp: Input) {
-        // Check that ratio * y ~= 2
-        let error = 2*S_sq - self.ratio_term * inp.y + 512*S;
-        error.assert_max_bit_size::<LOG_S + 10>();
+        // // Check that ratio * y ~= 2
+        // let error = 2*S_sq - self.ratio_term * inp.y + 512*S;
+        // error.assert_max_bit_size::<LOG_S + 10>();
+
+        // Modified to check y^2
+        let error = self.y_sq * S - inp.y * inp.y + 2*S;
+        error.assert_max_bit_size::<LOG_S + 2>();
     }
 
-    fn check_inverse(self, _inp: Input) {
-        // Check inverses
+    fn check_inverse(self, inp: Input) {
+        // Check if inverse * (mult_term + 4) = 2y
         for i in 0..N_POINTS {
-            let term = self.mult_terms[i] + self.ratio_term;
-            let error = S_sq - term * self.denom_inverses[i] + 512*S;
-            error.assert_max_bit_size::<LOG_S + 10>();
+            let term = self.mult_terms[i] + 4 * S;
+            let error = 2 * inp.y * S - term * self.denom_inverses[i] + 8*S;
+            error.assert_max_bit_size::<LOG_S + 4>();
         }
     }
 
@@ -261,15 +265,15 @@ impl GLFunction for TangentWitness {
         for i in 0..N_POINTS {
             rhs += GL_WEIGHTS[i] * self.denom_inverses[i];
         }
-        let error = lhs - rhs + 10*S;
+        let error = lhs - rhs + 8*S;
         error.assert_max_bit_size::<LOG_S + 4>();
     }
 
-    fn check_mult(self, inp: Input) {
-        // Check multiplicative terms
+    fn check_mult(self, _inp: Input) {
+        // Check multiplicative terms = y^2 * GL_ROOT
         for i in 0..N_POINTS {
-            let error = 2 * self.mult_terms[i] * S - GL_ROOTS_tan[i] * inp.y + 512*S;
-            error.assert_max_bit_size::<LOG_S + 10>();
+            let error = self.mult_terms[i] * S - GL_ROOTS_tan[i] * self.y_sq + 4*S;
+            error.assert_max_bit_size::<LOG_S + 3>();
         }
     }
 }

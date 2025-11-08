@@ -278,15 +278,15 @@ if __name__ == "__main__":
             print(f"Sum check error: {mpmath.nstr(sum_check - x_input, n=15)}")
 
         elif function == "tan":
-            ratio = 2 / y_input
+            y_sq = y_input ** 2
 
             gl_inverses = []
             mult_terms = []
             for r in roots_tan:
                 r = mpmath.mpf(r)
-                mult_term = (y_input / 2) * r
+                mult_term = y_sq * r
                 mult_terms.append(quantize(mult_term, scale))
-                gl_inverse = 1 / ((y_input / 2) * r + ratio)
+                gl_inverse = (2 * y_input) / (mult_term + 4)
                 gl_inverses.append(quantize(gl_inverse, scale))
 
             gl_wits.append({
@@ -298,7 +298,7 @@ if __name__ == "__main__":
                     "k": str(k_quantized) if k_quantized is not None else "0"
                 },
                 "wit_struct": {
-                    "ratio_term": str(quantize(ratio, scale)),
+                    "y_sq": str(quantize(y_sq, scale)),
                     "denom_inverses": [str(v) for v in gl_inverses],
                     "mult_terms": [str(v) for v in mult_terms]
                 }
@@ -308,19 +308,19 @@ if __name__ == "__main__":
         elif function == "cos":
             tan_x = mpmath.tan(x_input)
             # tan part
-            ratio = 2 / tan_x
+            tan_x_sq = tan_x ** 2
 
             gl_inverses = []
             mult_terms = []
             for r in roots_tan:
                 r = mpmath.mpf(r)
-                mult_term = (tan_x / 2) * r
+                mult_term = tan_x_sq * r
                 mult_terms.append(quantize(mult_term, scale))
-                gl_inverse = 1 / ((tan_x / 2) * r + ratio)
+                gl_inverse = (2 * tan_x) / (mult_term + 4)
                 gl_inverses.append(quantize(gl_inverse, scale))
 
             tan_wit = {
-                "ratio_term": str(quantize(ratio, scale)),
+                "y_sq": str(quantize(tan_x_sq, scale)),
                 "denom_inverses": [str(v) for v in gl_inverses],
                 "mult_terms": [str(v) for v in mult_terms]
             }
