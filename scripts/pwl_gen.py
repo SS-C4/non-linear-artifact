@@ -78,9 +78,9 @@ if __name__ == "__main__":
         y_quantized = quantize(y, 2 ** log_scale)
 
         pwl_wits.append({
-            "x": x_quantized,
-            "y": y_quantized,
-            "segment_index": piece_index
+            "x": str(x_quantized),
+            "y": str(y_quantized),
+            "segment_index": str(piece_index)
         })
 
     with open("Prover.toml", "r+") as f:

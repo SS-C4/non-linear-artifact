@@ -15,8 +15,8 @@ pub struct PolyWitness {
 /// the quantized product is close to the expected value.
 fn check_quantized_mult(a_q: Field, b_q: Field, ab_q: Field) {
     // Multiply and keep the top half
-    let error = (a_q * b_q - ab_q * SCALE + 16 * SCALE);
-    error.assert_max_bit_size::<LOG_SCALE + 5>();
+    let error = (a_q * b_q - ab_q * SCALE + 2 * SCALE);
+    error.assert_max_bit_size::<LOG_SCALE + 2>();
 }
 
 pub fn check_powers(x: Field, intermediates: [Field; DEGREE + 1]) {

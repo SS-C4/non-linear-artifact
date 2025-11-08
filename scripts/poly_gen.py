@@ -40,10 +40,6 @@ if __name__ == "__main__":
     func = function_map[func_name]
     coeffs = taylor_coeffs(func, degree, log_scale)
 
-    print("Coefficients:")
-    for i, coeff in enumerate(coeffs):
-        print(f"Degree {i}: {coeff}")
-
     with open("src/poly_approx/constants.nr", "w") as f:
         f.write(f"pub global NUM_INPUTS: u32 = {num_inputs};\n")
         f.write(f"pub global LOG_SCALE: u32 = {log_scale};\n")
@@ -68,12 +64,10 @@ if __name__ == "__main__":
             x_power_quantized = quantize(x_power, 2 ** log_scale)
             intermediates.append(x_power_quantized % field_order)
 
-        print(intermediates)
-
         poly_wits.append({
-            "x": x_quantized % field_order,
-            "y": y_quantized % field_order,
-            "intermediates": intermediates
+            "x": str(x_quantized % field_order),
+            "y": str(y_quantized % field_order),
+            "intermediates": [str(val) for val in intermediates]
         })
 
     with open("Prover.toml", "r+") as f:
