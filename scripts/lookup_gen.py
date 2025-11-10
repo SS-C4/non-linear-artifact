@@ -85,8 +85,9 @@ def build_binary_tree_multiplication(input_values):
 
     return data_vector, operations
 
-def write_to_constants(num_inputs, softmax_size, tables, cosine_table, log_scale, log_base, mult_ops):
-    with open("src/exp_lookup/constants.nr", "w") as f:
+def write_to_constants(func_type, num_inputs, softmax_size, tables, custom_table, log_scale, log_base, mult_ops):
+    with open("src/lookup/constants.nr", "w") as f:
+        f.write(f"pub type FUNC_TYPE = super::structs::{func_type};\n")
         f.write(f"pub global NUM_INPUTS: u32 = {num_inputs};\n")
         f.write(f"pub global NUM_SOFTMAX: u32 = {softmax_size};\n")
         f.write(f"pub global LOG_S: u32 = {log_scale};\n")
@@ -108,42 +109,61 @@ def write_to_constants(num_inputs, softmax_size, tables, cosine_table, log_scale
         for table in tables:
             f.write("    [{}],\n".format(", ".join(map(str, table))))
         f.write("];\n")
-        f.write("pub global COSINE_TABLE: [Field; {}] = [\n".format(len(cosine_table)))
-        f.write("    {},\n".format(", ".join(map(str, cosine_table))))
-        f.write("];\n")
+        if len(custom_table) > 0:
+            f.write("pub global COSINE_TABLE: [Field; {}] = [\n".format(len(custom_table)))
+            f.write("    {},\n".format(", ".join(map(str, custom_table))))
+            f.write("];\n")
+        else:
+            f.write("pub global COSINE_TABLE: [Field; 0] = [];\n")
+
+function_map = {
+    "inv_exp": "InvExpLookupWitness",
+    "sigmoid": "SigmoidLookupWitness",
+    "tanh": "TanhLookupWitness",
+    "cos": "CosineLookupWitness",
+    "softmax": "SoftMaxLookupWitness"
+}
 
 if __name__ == "__main__":
     if len(sys.argv) < 5:
-        print("Usage: python exp_gen.py <func> <num_inputs> <log_base> <log_scale> [<softmax_size> if func is 'softmax']")
+        print("Usage: python3 gl_gen.py <function> <num_inputs> <n_points> <log_scale> [<k> if function is 'power'] [<dim_softmax> if function is 'softmax']")
+        print("\nArguments:")
+        print("  <function>        : 'exp', 'inv_exp', 'sigmoid', 'tanh', 'tan', 'cos', 'power', 'softmax'.")
+        print("  <num_inputs>      : Number of inputs required for the function.")
+        print("  <log_base>       : Log base for quantization (integer).")
+        print("  <log_scale>       : Log scale for quantization (integer).")
+        print("  <k>               : Required if function is 'power'.")
+        print("  <dim_softmax>     : Required if function is 'softmax'.")
         sys.exit(1)
 
+    # Parse required arguments
     func = sys.argv[1]
+    num_inputs = int(sys.argv[2])
+    log_base = int(sys.argv[3])
+    log_scale = int(sys.argv[4])
 
-    try:
-        num_inputs = int(sys.argv[2])
-        log_base = int(sys.argv[3])
-        log_scale = int(sys.argv[4])
-    except ValueError:
-        print("Error: <num_inputs>, <log_base>, and <log_scale> must be integers")
-        sys.exit(1)
-
+    k = None
     softmax_size = None
-    if func == "softmax":
-        if len(sys.argv) != 6:
-            print("Error: 'softmax' function requires <softmax_size> argument.")
-            sys.exit(1)
-        try:
-            softmax_size = int(sys.argv[5])
-        except ValueError:
-            print("Error: <softmax_size> must be an integer")
-            sys.exit(1)
-    else:
-        if len(sys.argv) != 5:
-            print("Error: Only 'softmax' takes a <softmax_size> argument.")
-            sys.exit(1)
 
-    if func == "cosine":
-        assert log_base == log_scale, "For cosine, log_base must equal log_scale"
+    # Check optional arguments based on function
+    if func == "power":
+        if len(sys.argv) < 6:
+            print("Error: The 'power' function requires the additional parameter k.")
+            sys.exit(1)
+        k = sys.argv[5]
+        k_quantized = int(mp.nint(mpf(k) * (2 ** log_scale)))
+
+    elif func == "softmax":
+        if len(sys.argv) < 6:
+            print("Error: The 'softmax' function requires the additional parameter softmax_size.")
+            sys.exit(1)
+        softmax_size = int(sys.argv[5])
+
+    elif len(sys.argv) > 5:
+        print("Warning: Extra arguments ignored.")
+
+    if func == "cos":
+        assert log_base == log_scale, "Cannot decompose table"
 
     if log_scale % log_base != 0:
         print("Error: log_scale must be a multiple of log_base")
@@ -164,22 +184,29 @@ if __name__ == "__main__":
 
             if i == 0:
                 softmax_size = 1  # Not used for inv_exp
-                write_to_constants(num_inputs, softmax_size, tables, [], log_scale, log_base, mult_ops)
+                write_to_constants(function_map[func], num_inputs, softmax_size, tables, [], log_scale, log_base, mult_ops)
 
             x_quantized = int(mp.nint(mpf(x_input) * scale))
             y_quantized = int(mp.nint(y * scale))
 
             exp_wits.append({
-                "x": str(x_quantized),
-                "y": str(y_quantized),
-                "x_decomp": [str(c) for c in coeffs],
-                "lookup_mults": [str(v) for v in data_vector],
+                "inp_struct": {
+                    "x": str(x_quantized),
+                    "y": str(y_quantized),
+                    "vec_x": [str(x_quantized)],
+                    "vec_y": [str(y_quantized)],
+                    "k": str(k) if k is not None else "0",
+                },
+                "wit_struct": {
+                    "x_decomp": [str(c) for c in coeffs],
+                    "lookup_mults": [str(v) for v in data_vector],
+                }
             })
 
         # Witness in Prover.toml
         with open("Prover.toml", "r+") as f:
             toml_data = toml.load(f)
-            toml_data["_exp_wits"] = exp_wits
+            toml_data["_lookup_wits"] = exp_wits
             f.seek(0)
             toml.dump(toml_data, f)
             f.truncate()
@@ -211,35 +238,49 @@ if __name__ == "__main__":
                 data_vector, mult_ops = build_binary_tree_multiplication(lookup_outputs)
 
                 if i == 0 and j == 0:
-                    write_to_constants(num_inputs, softmax_size, tables, [], log_scale, log_base, mult_ops)
+                    write_to_constants(function_map[func], num_inputs, softmax_size, tables, [], log_scale, log_base, mult_ops)
 
                 # x_quantized = int(mp.nint(mpf(x_input) * scale))
                 y_quantized = int(mp.nint(y * scale))
 
                 exp_wits.append({
-                    "x": str(x_quantized),
-                    "y": str(y_quantized),
-                    "x_decomp": [str(c) for c in coeffs],
-                    "lookup_mults": [str(v) for v in data_vector],
+                    "inp_struct": {
+                        "x": str(x_quantized),
+                        "y": str(y_quantized),
+                        "vec_x": [str(xq) for xq in vec_x_quantized],
+                        "vec_y": [str(yq) for yq in vec_y_quantized],
+                        "k": "0",
+                    },
+                    "wit_struct": {
+                        "x_decomp": [str(c) for c in coeffs],
+                        "lookup_mults": [str(v) for v in data_vector],
+                    }
                 })
 
             shift_quantized = int(mp.nint(shift * scale))
             softmax_wits.append({
-                "vec_x": [str(xq) for xq in vec_x_quantized],
-                "vec_y": [str(yq) for yq in vec_y_quantized],
-                "exp_wits": exp_wits,
-                "shift": str(shift_quantized),
+                "inp_struct": {
+                    "x": str(0),
+                    "y": str(0),
+                    "vec_x": [str(xq) for xq in vec_x_quantized],
+                    "vec_y": [str(yq) for yq in vec_y_quantized],
+                    "k": "0",
+                },
+                "wit_struct": {
+                    "exp_wits": exp_wits,
+                    "shift": str(shift_quantized),
+                }
             })
 
         # Witness in Prover.toml
         with open("Prover.toml", "r+") as f:
             toml_data = toml.load(f)
-            toml_data["_softmax_wits"] = softmax_wits
+            toml_data["_lookup_wits"] = softmax_wits
             f.seek(0)
             toml.dump(toml_data, f)
             f.truncate()
 
-    elif func == "cosine":
+    elif func == "cos":
         cosine_wits = []
         table, scale = generate_cosine_table(log_scale)
 
@@ -250,18 +291,26 @@ if __name__ == "__main__":
             y_quantized = int(mp.nint(y * scale))
 
             cosine_wits.append({
-                "x": str(x_quantized),
-                "y": str(y_quantized),
+                "inp_struct": {
+                    "x": str(x_quantized),
+                    "y": str(y_quantized),
+                    "vec_x": [str(x_quantized)],
+                    "vec_y": [str(y_quantized)],
+                    "k": "0",
+                },
+                "wit_struct": {
+                    "_dummy": "0",
+                }
             })
 
             if i == 0:
                 softmax_size = 1  # Not used for cosine
                 base = 2 ** log_base
-                write_to_constants(num_inputs, softmax_size, [], table, log_scale, log_base, [(0,0,0)])
+                write_to_constants(function_map[func], num_inputs, softmax_size, [], table, log_scale, log_base, [(0,0,0)])
 
         with open("Prover.toml", "r+") as f:
             toml_data = toml.load(f)
-            toml_data["_cosine_wits"] = cosine_wits
+            toml_data["_lookup_wits"] = cosine_wits
             f.seek(0)
             toml.dump(toml_data, f)
             f.truncate()

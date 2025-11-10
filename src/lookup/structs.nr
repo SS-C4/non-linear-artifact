@@ -1,31 +1,63 @@
-pub mod constants;
+use super::constants::{LOG_BASE, BASE_POWERS, LOG_S, S, MULT_OPS, NUM_TABLES, NUM_SOFTMAX, EXP_TABLES, COSINE_TABLE};
 
-use constants::{LOG_BASE, BASE_POWERS, LOG_S, S, MULT_OPS, NUM_TABLES, NUM_SOFTMAX, EXP_TABLES, COSINE_TABLE};
+pub trait LookupFunction {
+    fn check_lookup(self, inp: Input);
+}
 
+pub struct LookupWitness <T> {
+    pub inp_struct: Input,
+    pub wit_struct: T,
+}
+
+pub struct Input {
+    pub x: Field, // Input value
+    pub y: Field, // Output value
+
+    pub vec_x: [Field; NUM_SOFTMAX], // For softmax
+    pub vec_y: [Field; NUM_SOFTMAX], // For softmax
+
+    pub k: Field, // For power function
+}
+
+// All function types
 pub struct InvExpLookupWitness {
-    // Statement
-    x: Field, // Input value
-    y: Field, // Output = exp(-x)
-
     // Witness
     x_decomp: [Field; NUM_TABLES], // Decomposed input value
     lookup_mults: [Field; 2 * NUM_TABLES - 1], // Intermediate products for quantized multiplication
 }
 
 pub struct SoftMaxLookupWitness {
-    // Statement
-    vec_x: [Field; NUM_SOFTMAX], // Input vector
-    vec_y: [Field; NUM_SOFTMAX], // Output vector = softmax(vec_x)
-
     // Witnesses
-    exp_wits: [InvExpLookupWitness; NUM_SOFTMAX], // Exponential lookup witnesses
+    exp_wits: [LookupWitness<InvExpLookupWitness>; NUM_SOFTMAX],
     shift: Field,        // Log of denominator
 }
 
-pub struct CosineWitness {
-    // Statement
-    x: Field, // Input value
-    y: Field, // Output = cos(x)
+pub struct CosineLookupWitness {
+    // Witness
+    _dummy: Field,
+}
+
+pub struct TanhLookupWitness {
+    // Witness
+    inv_exp_witness: InvExpLookupWitness,
+}
+
+impl LookupFunction for InvExpLookupWitness {
+    fn check_lookup(self, inp: Input) {
+        check_inv_exp_lookup(inp, self);
+    }
+}
+
+impl LookupFunction for SoftMaxLookupWitness {
+    fn check_lookup(self, inp: Input) {
+        check_softmax_lookup(inp, self);
+    }
+}
+
+impl LookupFunction for CosineLookupWitness {
+    fn check_lookup(self, inp: Input) {
+        check_cosine_lookup(inp, self);
+    }
 }
 
 fn check_decomp(x: Field, decomp: [Field; NUM_TABLES]) {
@@ -63,9 +95,9 @@ fn check_products(lookup_mults: [Field; 2 * NUM_TABLES - 1]) {
     }
 }
 
-pub fn check_inv_exp_lookup(wit: InvExpLookupWitness) {
+pub fn check_inv_exp_lookup(inp: Input, wit: InvExpLookupWitness) {
     // Check validity of the decomposition
-    check_decomp(wit.x, wit.x_decomp);
+    check_decomp(inp.x, wit.x_decomp);
 
     // Lookup check
     for i in 0..NUM_TABLES {
@@ -77,39 +109,39 @@ pub fn check_inv_exp_lookup(wit: InvExpLookupWitness) {
     check_products(wit.lookup_mults);
 
     // Output range check
-    let error = (wit.y - wit.lookup_mults[2 * NUM_TABLES - 2] + 16);
+    let error = (inp.y - wit.lookup_mults[2 * NUM_TABLES - 2] + 16);
     error.assert_max_bit_size::<5>();
 }
 
-pub fn check_softmax_lookup(wit: SoftMaxLookupWitness) {
+pub fn check_softmax_lookup(inp: Input, wit: SoftMaxLookupWitness) {
     // Check that exp_wits[i].x == shift - vec_x[i]
     for i in 0..NUM_SOFTMAX {
-        assert(wit.exp_wits[i].x == wit.shift - wit.vec_x[i]);
+        assert(wit.exp_wits[i].inp_struct.x == wit.shift - inp.vec_x[i]);
     }
 
     // Check each exp lookup
     for i in 0..NUM_SOFTMAX {
-        check_inv_exp_lookup(wit.exp_wits[i]);
+        check_inv_exp_lookup(wit.exp_wits[i].inp_struct, wit.exp_wits[i].wit_struct);
     }
 
     // Check sum ~= 1
     let mut sum_exp = 0;
     for i in 0..NUM_SOFTMAX {
-        sum_exp += wit.exp_wits[i].y;
+        sum_exp += wit.exp_wits[i].inp_struct.y;
     }
     let error = (sum_exp - S + 8);
     error.assert_max_bit_size::<4>();
 
     // Check vec_y[i] ~= exp(vec_x[i])
     for i in 0..NUM_SOFTMAX {
-        let error = (wit.vec_y[i] - wit.exp_wits[i].y);
+        let error = (inp.vec_y[i] - wit.exp_wits[i].inp_struct.y);
         error.assert_max_bit_size::<4>();
     }
 }
 
-pub fn check_cosine_lookup(wit: CosineWitness) {
+pub fn check_cosine_lookup(inp: Input, _wit: CosineLookupWitness) {
     // One lookup call to a cosine table
     // Cannot decompose cosine unless using a half angle formula like cos(2x) = 2cos^2(x) - 1
     // but this only reduces the table size by a factor of 2
-    assert(wit.y == COSINE_TABLE[wit.x as u32]);
+    assert(inp.y == COSINE_TABLE[inp.x as u32]);
 }
