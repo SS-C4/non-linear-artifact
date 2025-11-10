@@ -14,12 +14,17 @@ use pwl::{constants::NUM_INPUTS as PWL_NUM, PWLWitness};
 pub mod poly_approx;
 use poly_approx::{constants::NUM_INPUTS as POLY_NUM, PolyWitness};
 
+// Pade approximation
+pub mod pade_approx;
+use pade_approx::{constants::NUM_INPUTS as PADE_NUM, PadeWitness};
+
 fn main(
     // _exp_wits: [InvExpLookupWitness; LOOKUP_NUM],
     // _cosine_wits: [CosineWitness; LOOKUP_NUM],
     // _gl_wits: [GLWitness<FUNC_TYPE>; GL_NUM],
-    _pwl_wits: [PWLWitness; PWL_NUM],
+    // _pwl_wits: [PWLWitness; PWL_NUM],
     // _poly_wits: [PolyWitness; POLY_NUM],
+    _pade_wits: [PadeWitness; PADE_NUM],
     // _softmax_wits: [SoftMaxLookupWitness; LOOKUP_NUM]
 ) {
     // for exp_wit in _exp_wits {
@@ -31,12 +36,15 @@ fn main(
     // for gl_wit in _gl_wits {
     //     gl_quad::check_gl_quad(gl_wit);
     // }
-    for pwl_wit in _pwl_wits {
-        pwl::check_pwl_approx(pwl_wit);
-    }
+    // for pwl_wit in _pwl_wits {
+    //     pwl::check_pwl_approx(pwl_wit);
+    // }
     // for poly_wit in _poly_wits {
     //     poly_approx::check_poly_approx(poly_wit);
     // }
+    for pade_wit in _pade_wits {
+        pade_approx::check_pade_approx(pade_wit);
+    }
     // for softmax_wit in _softmax_wits {
     //     exp_lookup::check_softmax_lookup(softmax_wit);
     // }
