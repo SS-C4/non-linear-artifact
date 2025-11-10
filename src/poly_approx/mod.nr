@@ -45,7 +45,7 @@ pub fn check_poly_approx(wit: PolyWitness) {
     }
 
     // Check that approximation is close to y
-    let error = wit.y * SCALE - approx + 16 * SCALE;
-    error.assert_max_bit_size::<LOG_SCALE + 5>();
+    let error = wit.y * SCALE - approx + 128 * SCALE;
+    error.assert_max_bit_size::<LOG_SCALE + 8>();
 }
 

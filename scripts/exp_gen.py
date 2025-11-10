@@ -245,7 +245,7 @@ if __name__ == "__main__":
 
         for i in range(num_inputs):
             x_input = mpf(mp.rand())
-            y = mp.cos(x_input)
+            y = table[int(mp.nint(x_input * scale))] / scale
             x_quantized = int(mp.nint(x_input * scale))
             y_quantized = int(mp.nint(y * scale))
 

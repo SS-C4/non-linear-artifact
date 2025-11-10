@@ -57,7 +57,7 @@ if __name__ == "__main__":
         f.write(f"pub global NUM_INPUTS: u32 = {num_inputs};\n")
         f.write(f"pub global LOG_SCALE: u32 = {log_scale};\n")
         f.write(f"pub global SCALE: Field = {2 ** log_scale};\n")
-        f.write(f"pub global PIECE_SIZE: u32 = {piece_size_quantized};\n\n")
+        f.write(f"pub global PIECE_SIZE: Field = {piece_size_quantized};\n\n")
         f.write(f"pub global START_POINTS: [Field; {len(start_points)}] = [\n")
         f.write("    {},\n".format(", ".join(map(str, start_points))))
         f.write("];\n\n")
