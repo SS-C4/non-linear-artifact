@@ -34,26 +34,26 @@ pub struct Input {
 // All possible function types
 // y = e^x
 pub struct ExponentialWitness {
-    pub ratio_term: Field, 
     pub denom_inverses: [Field; N_POINTS],
+    pub mult_terms: [Field; N_POINTS],
 }
 
 // y = e^-x
 pub struct InverseExponentialWitness {
-    pub ratio_term: Field, 
     pub denom_inverses: [Field; N_POINTS],
+    pub mult_terms: [Field; N_POINTS],
 }
 
 // y = sigmoid(x) = 1 / (1 + e^-x)
 pub struct SigmoidWitness {
-    pub ratio_term: Field, 
     pub denom_inverses: [Field; N_POINTS],
+    pub mult_terms: [Field; N_POINTS],
 }
 
 // y = tanh(x) = (e^x - e^-x) / (e^x + e^-x)
 pub struct TanhWitness {
-    pub ratio_term: Field, 
     pub denom_inverses: [Field; N_POINTS],
+    pub mult_terms: [Field; N_POINTS],
 }
 
 // y = tan(x)
@@ -72,10 +72,10 @@ pub struct CosineWitness {
 
 // y = x^k
 pub struct PowerWitness {
-    pub ratio_term_1: Field, 
-    pub ratio_term_2: Field,
     pub denom_inverses_1: [Field; N_POINTS],
     pub denom_inverses_2: [Field; N_POINTS],
+    pub mult_terms_1: [Field; N_POINTS],
+    pub mult_terms_2: [Field; N_POINTS],
 }
 
 // y = softmax(x)
@@ -91,18 +91,18 @@ impl GLFunction for ExponentialWitness {
         // No need to check y bound for e^x
     }
 
-    fn check_ratio(self, inp: Input) {
-        // Check that ratio * (y - 1) ~= (y + 1)
-        let error = (S + inp.y) * S - self.ratio_term * (inp.y - S) + 8192*S;
-        error.assert_max_bit_size::<LOG_S + 14>();
+    fn check_ratio(self, _inp: Input) {
+        // // Check that ratio * (y - 1) ~= (y + 1)
+        // let error = (S + inp.y) * S - self.ratio_term * (inp.y - S) + 8192*S;
+        // error.assert_max_bit_size::<LOG_S + 14>();
     }
 
-    fn check_inverse(self, _inp: Input) {
+    fn check_inverse(self, inp: Input) {
         // Check inverses
         for i in 0..N_POINTS {
-            let term = GL_ROOTS[i] + self.ratio_term;
-            let error = S_sq - term * self.denom_inverses[i] + 8192*S;
-            error.assert_max_bit_size::<LOG_S + 14>();
+            let term = self.mult_terms[i] - GL_ROOTS[i] + inp.y + S;
+            let error = (inp.y - S) * S - term * self.denom_inverses[i] + 4*S;
+            error.assert_max_bit_size::<LOG_S + 3>();
         }
     }
 
@@ -113,12 +113,16 @@ impl GLFunction for ExponentialWitness {
         for i in 0..N_POINTS {
             rhs += GL_WEIGHTS[i] * self.denom_inverses[i];
         }
-        let error = lhs - rhs + 10*S;
-        error.assert_max_bit_size::<LOG_S + 4>();
+        let error = lhs - rhs + 4*S;
+        error.assert_max_bit_size::<LOG_S + 3>();
     }
 
-    fn check_mult(self, _inp: Input) {
-        // No multiplicative checks needed for exp(x)
+    fn check_mult(self, inp: Input) {
+        // Check y * t
+        for i in 0..N_POINTS {
+            let error = self.mult_terms[i] * S - inp.y * GL_ROOTS[i] + 4*S;
+            error.assert_max_bit_size::<LOG_S + 3>();
+        }
     }
 }
 
@@ -128,18 +132,18 @@ impl GLFunction for InverseExponentialWitness {
         inp.y.assert_max_bit_size::<LOG_S>();
     }
 
-    fn check_ratio(self, inp: Input) {
-        // Check that ratio * (1 - y) ~= (1 + y)
-        let error = (S + inp.y) * S - self.ratio_term * (S - inp.y) + 10000*S;
-        error.assert_max_bit_size::<LOG_S + 15>();
+    fn check_ratio(self, _inp: Input) {
+        // // Check that ratio * (1 - y) ~= (1 + y)
+        // let error = (S + inp.y) * S - self.ratio_term * (S - inp.y) + 10000*S;
+        // error.assert_max_bit_size::<LOG_S + 15>();
     }
 
-    fn check_inverse(self, _inp: Input) {
+    fn check_inverse(self, inp: Input) {
         // Check inverses
         for i in 0..N_POINTS {
-            let term = GL_ROOTS[i] + self.ratio_term;
-            let error = S_sq - term * self.denom_inverses[i] + 10000*S;
-            error.assert_max_bit_size::<LOG_S + 15>();
+            let term = GL_ROOTS[i] - self.mult_terms[i] + S + inp.y;
+            let error = (S - inp.y) * S - term * self.denom_inverses[i] + 4*S;
+            error.assert_max_bit_size::<LOG_S + 3>();
         }
     }
 
@@ -150,12 +154,16 @@ impl GLFunction for InverseExponentialWitness {
         for i in 0..N_POINTS {
             rhs += GL_WEIGHTS[i] * self.denom_inverses[i];
         }
-        let error = lhs - rhs + 10*S;
-        error.assert_max_bit_size::<LOG_S + 20>();
+        let error = lhs - rhs + 4*S;
+        error.assert_max_bit_size::<LOG_S + 3>();
     }
 
     fn check_mult(self, _inp: Input) {
-        // No multiplicative checks needed for e^-x
+        // Check y * t
+        for i in 0..N_POINTS {
+            let error = self.mult_terms[i] * S - _inp.y * GL_ROOTS[i] + 4*S;
+            error.assert_max_bit_size::<LOG_S + 3>();
+        }
     }
 }
 
@@ -165,18 +173,18 @@ impl GLFunction for SigmoidWitness {
         inp.y.assert_max_bit_size::<LOG_S>();
     }
 
-    fn check_ratio(self, inp: Input) {
-        // Check that ratio * (2y - 1) ~= 1
-        let error = S_sq - self.ratio_term * (2*inp.y - S) + 10000*S;
-        error.assert_max_bit_size::<LOG_S + 15>();
+    fn check_ratio(self, _inp: Input) {
+        // // Check that ratio * (2y - 1) ~= 1
+        // let error = S_sq - self.ratio_term * (2*inp.y - S) + 10000*S;
+        // error.assert_max_bit_size::<LOG_S + 15>();
     }
 
-    fn check_inverse(self, _inp: Input) {
+    fn check_inverse(self, inp: Input) {
         // Check inverses
         for i in 0..N_POINTS {
-            let term = GL_ROOTS[i] + self.ratio_term;
-            let error = S_sq - term * self.denom_inverses[i] + 10000*S;
-            error.assert_max_bit_size::<LOG_S + 15>();
+            let term = 2 * self.mult_terms[i] - GL_ROOTS[i] + S;
+            let error = (2*inp.y - S) * S - term * self.denom_inverses[i] + 4*S;
+            error.assert_max_bit_size::<LOG_S + 3>();
         }
     }
 
@@ -187,12 +195,16 @@ impl GLFunction for SigmoidWitness {
         for i in 0..N_POINTS {
             rhs += GL_WEIGHTS[i] * self.denom_inverses[i];
         }
-        let error = lhs - rhs + 10*S;
-        error.assert_max_bit_size::<LOG_S + 20>();
+        let error = lhs - rhs + 4*S;
+        error.assert_max_bit_size::<LOG_S + 3>();
     }
 
-    fn check_mult(self, _inp: Input) {
-        // No multiplicative checks needed for sigmoid
+    fn check_mult(self, inp: Input) {
+        // Check y * t
+        for i in 0..N_POINTS {
+            let error = self.mult_terms[i] * S - inp.y * GL_ROOTS[i] + 4*S;
+            error.assert_max_bit_size::<LOG_S + 3>();
+        }
     }
 }
 
@@ -202,18 +214,18 @@ impl GLFunction for TanhWitness {
         inp.y.assert_max_bit_size::<LOG_S>();
     }
 
-    fn check_ratio(self, inp: Input) {
-        // Check that ratio * y ~= 2
-        let error = 2*S_sq - self.ratio_term * inp.y + 10000*S;
-        error.assert_max_bit_size::<LOG_S + 15>();
+    fn check_ratio(self, _inp: Input) {
+        // // Check that ratio * y ~= 2
+        // let error = 2*S_sq - self.ratio_term * inp.y + 10000*S;
+        // error.assert_max_bit_size::<LOG_S + 15>();
     }
 
-    fn check_inverse(self, _inp: Input) {
+    fn check_inverse(self, inp: Input) {
         // Check inverses
         for i in 0..N_POINTS {
-            let term = 2 * GL_ROOTS[i] + self.ratio_term;
-            let error = S_sq - term * self.denom_inverses[i] + 10000*S;
-            error.assert_max_bit_size::<LOG_S + 15>();
+            let term = 2 * self.mult_terms[i] + 2 * S;
+            let error = inp.y * S - term * self.denom_inverses[i] + 4*S;
+            error.assert_max_bit_size::<LOG_S + 3>();
         }
     }
 
@@ -224,13 +236,16 @@ impl GLFunction for TanhWitness {
         for i in 0..N_POINTS {
             rhs += GL_WEIGHTS[i] * self.denom_inverses[i];
         }
-        let error = lhs - rhs + 10*S;
-        println(error);
-        error.assert_max_bit_size::<LOG_S + 35>();
+        let error = lhs - rhs + 4*S;
+        error.assert_max_bit_size::<LOG_S + 3>();
     }
 
-    fn check_mult(self, _inp: Input) {
-        // No multiplicative checks needed for tanh
+    fn check_mult(self, inp: Input) {
+        // Check y * t
+        for i in 0..N_POINTS {
+            let error = self.mult_terms[i] * S - inp.y * GL_ROOTS[i] + 4*S;
+            error.assert_max_bit_size::<LOG_S + 3>();
+        }
     }
 }
 
@@ -245,7 +260,7 @@ impl GLFunction for TangentWitness {
         // error.assert_max_bit_size::<LOG_S + 10>();
 
         // Modified to check y^2
-        let error = self.y_sq * S - inp.y * inp.y + 2*S;
+        let error = self.y_sq * S - inp.y * inp.y + 1*S;
         error.assert_max_bit_size::<LOG_S + 2>();
     }
 
@@ -342,28 +357,28 @@ impl GLFunction for PowerWitness {
         // No need to check y bound for power function
     }
 
-    fn check_ratio(self, inp: Input) {
-        // Check that ratio * (1 - y) ~= (1 + y)
-        let error = (S + inp.y) * S - self.ratio_term_1 * (S - inp.y) + 10000*S;
-        error.assert_max_bit_size::<LOG_S + 15>();
+    fn check_ratio(self, _inp: Input) {
+        // // Check that ratio * (1 - y) ~= (1 + y)
+        // let error = (S + inp.y) * S - self.ratio_term_1 * (S - inp.y) + 10000*S;
+        // error.assert_max_bit_size::<LOG_S + 15>();
 
-        // Check that ratio * (1 - x) ~= (1 + x)
-        let error = (S + inp.x) * S - self.ratio_term_2 * (S - inp.x) + 10000*S;
-        error.assert_max_bit_size::<LOG_S + 15>();
+        // // Check that ratio * (1 - x) ~= (1 + x)
+        // let error = (S + inp.x) * S - self.ratio_term_2 * (S - inp.x) + 10000*S;
+        // error.assert_max_bit_size::<LOG_S + 15>();
     }
 
     fn check_inverse(self, inp: Input) {
         // Check inverses for first ratio
         for i in 0..N_POINTS {
-            let term = GL_ROOTS[i] + self.ratio_term_1;
-            let error = S_sq - term * self.denom_inverses_1[i] + 10000*S;
-            error.assert_max_bit_size::<LOG_S + 15>();
+            let term = GL_ROOTS[i] - self.mult_terms_1[i] + S + inp.y;
+            let error = (S - inp.y) * S - term * self.denom_inverses_1[i] + 16*S;
+            error.assert_max_bit_size::<LOG_S + 5>();
         }
         // Check inverses for second ratio
         for i in 0..N_POINTS {
-            let term = GL_ROOTS[i] + self.ratio_term_2;
-            let error = inp.k * S - term * self.denom_inverses_2[i] + 10000*S;
-            error.assert_max_bit_size::<LOG_S + 15>();
+            let term = GL_ROOTS[i] - self.mult_terms_2[i] + S + inp.x;
+            let error = (S - inp.x) * inp.k - term * self.denom_inverses_2[i] + 16*S;
+            error.assert_max_bit_size::<LOG_S + 5>();
         }
     }
 
@@ -374,13 +389,21 @@ impl GLFunction for PowerWitness {
         for i in 0..N_POINTS {
             rhs += GL_WEIGHTS[i] * (self.denom_inverses_1[i] - self.denom_inverses_2[i]);
         }
-        let error = lhs - rhs + 10*S;
-        println(error);
-        error.assert_max_bit_size::<LOG_S + 30>();
+        let error = lhs - rhs + 512*S;
+        error.assert_max_bit_size::<LOG_S + 10>();
     }
 
     fn check_mult(self, _inp: Input) {
-        // No multiplicative checks needed for power
+        // Check y * t for first ratio
+        for i in 0..N_POINTS {
+            let error = self.mult_terms_1[i] * S - _inp.y * GL_ROOTS[i] + 4*S;
+            error.assert_max_bit_size::<LOG_S + 3>();
+        }
+        // Check y * t for second ratio
+        for i in 0..N_POINTS {
+            let error = self.mult_terms_2[i] * S - _inp.x * GL_ROOTS[i] + 4*S;
+            error.assert_max_bit_size::<LOG_S + 3>();
+        }
     }
 }
 

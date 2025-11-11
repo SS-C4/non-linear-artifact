@@ -106,7 +106,7 @@ if __name__ == "__main__":
 
     gl_wits = []
     for i in range(int(num_inputs)):
-        x_input = mpmath.mpf(mpmath.rand())
+        x_input = mpmath.mpf(mpmath.rand()) + (0.1 if function == "power" else 0)
 
         softmax_inputs = [mpmath.mpf(mpmath.rand()) for _ in range(int(dim_softmax))] if function == "softmax" else None
         
@@ -149,12 +149,16 @@ if __name__ == "__main__":
         k_quantized = quantize(k_input, scale) if k_input is not None else None
 
         if function == "exp":
-            ratio = (y_input + 1) / (y_input - 1)
+            mult_terms = []
+            for r in roots:
+                r = mpmath.mpf(r)
+                mult_term = y_input * r
+                mult_terms.append(quantize(mult_term, scale) % field_order)
             
             gl_inverses = []
             for r in roots:
                 r = mpmath.mpf(r)
-                gl_inverse = 1 / (r + ratio)
+                gl_inverse = (y_input - 1) / (y_input * r - r + y_input + 1)
                 gl_inverses.append(quantize(gl_inverse, scale))
                 
             gl_wits.append({
@@ -166,8 +170,8 @@ if __name__ == "__main__":
                     "k": str(k_quantized) if k_quantized is not None else "0"
                 },
                 "wit_struct": {
-                    "ratio_term": str(quantize(ratio, scale)),
-                    "denom_inverses": [str(v) for v in gl_inverses]
+                    "denom_inverses": [str(v) for v in gl_inverses],
+                    "mult_terms": [str(v) for v in mult_terms],
                 }
             })
 
@@ -176,17 +180,22 @@ if __name__ == "__main__":
             for j in range(n_points):
                 w = mpmath.mpf(weights[j])
                 r = mpmath.mpf(roots[j])
-                sum_check += w / (r + ratio)
+                sum_check += w / (r + (y_input + 1)/(y_input - 1))
 
             print(f"Sum check error: {mpmath.nstr(sum_check - x_input, n=15)}")
 
+
         elif function == "inv_exp":
-            ratio = (1 + y_input) / (1 - y_input)
+            mult_terms = []
+            for r in roots:
+                r = mpmath.mpf(r)
+                mult_term = y_input * r
+                mult_terms.append(quantize(mult_term, scale) % field_order)
 
             gl_inverses = []
             for r in roots:
                 r = mpmath.mpf(r)
-                gl_inverse = 1 / (r + ratio)
+                gl_inverse = (1 - y_input) / ( - y_input * r + r + 1 + y_input)
                 gl_inverses.append(quantize(gl_inverse, scale))
 
             gl_wits.append({
@@ -198,8 +207,8 @@ if __name__ == "__main__":
                     "k": str(k_quantized) if k_quantized is not None else "0"
                 },
                 "wit_struct": {
-                    "ratio_term": str(quantize(ratio, scale)),
-                    "denom_inverses": [str(v) for v in gl_inverses]
+                    "denom_inverses": [str(v) for v in gl_inverses],
+                    "mult_terms": [str(v) for v in mult_terms],
                 }
             })
 
@@ -208,17 +217,21 @@ if __name__ == "__main__":
             for j in range(n_points):
                 w = mpmath.mpf(weights[j])
                 r = mpmath.mpf(roots[j])
-                sum_check += w / (r + ratio)
+                sum_check += w / (r + (1 + y_input)/(1 - y_input))
 
             print(f"Sum check error: {mpmath.nstr(sum_check - x_input, n=15)}")
 
         elif function == "sigmoid":
-            ratio = 1 / (2 * y_input - 1)
+            mult_terms = []
+            for r in roots:
+                r = mpmath.mpf(r)
+                mult_term = y_input * r
+                mult_terms.append(quantize(mult_term, scale) % field_order)
 
             gl_inverses = []
             for r in roots:
                 r = mpmath.mpf(r)
-                gl_inverse = 1 / (r + ratio)
+                gl_inverse = (2 * y_input - 1) / (2 * y_input * r - r + 1)
                 gl_inverses.append(quantize(gl_inverse, scale))
 
             gl_wits.append({
@@ -230,8 +243,8 @@ if __name__ == "__main__":
                     "k": str(k_quantized) if k_quantized is not None else "0"
                 },
                 "wit_struct": {
-                    "ratio_term": str(quantize(ratio, scale)),
-                    "denom_inverses": [str(v) for v in gl_inverses]
+                    "denom_inverses": [str(v) for v in gl_inverses],
+                    "mult_terms": [str(v) for v in mult_terms],
                 }
             })
 
@@ -245,12 +258,16 @@ if __name__ == "__main__":
             print(f"Sum check error: {mpmath.nstr(sum_check - x_input, n=15)}")
 
         elif function == "tanh":
-            ratio = 2 / y_input
+            mult_terms = []
+            for r in roots:
+                r = mpmath.mpf(r)
+                mult_term = y_input * r
+                mult_terms.append(quantize(mult_term, scale) % field_order)
 
             gl_inverses = []
             for r in roots:
                 r = mpmath.mpf(r)
-                gl_inverse = 1 / (2 * r + ratio)
+                gl_inverse = y_input / (2 * y_input * r + 2)
                 gl_inverses.append(quantize(gl_inverse, scale))
 
             gl_wits.append({
@@ -262,8 +279,8 @@ if __name__ == "__main__":
                     "k": str(k_quantized) if k_quantized is not None else "0"
                 },
                 "wit_struct": {
-                    "ratio_term": str(quantize(ratio, scale)),
-                    "denom_inverses": [str(v) for v in gl_inverses]
+                    "denom_inverses": [str(v) for v in gl_inverses],
+                    "mult_terms": [str(v) for v in mult_terms],
                 }
             })
 
@@ -341,17 +358,23 @@ if __name__ == "__main__":
             })
 
         elif function == "power":
-            ratio_1 = (1 + y_input) / (1 - y_input)
-            ratio_2 = (1 + x_input) / (1 - x_input)
+            mult_terms_1 = []
+            mult_terms_2 = []
+            for r in roots:
+                r = mpmath.mpf(r)
+                mult_term_1 = y_input * r
+                mult_term_2 = x_input * r
+                mult_terms_1.append(quantize(mult_term_1, scale) % field_order)
+                mult_terms_2.append(quantize(mult_term_2, scale) % field_order)
 
             gl_inverses_1 = []
             gl_inverses_2 = []
             for r in roots:
                 r = mpmath.mpf(r)
-                gl_inverse_1 = 1 / (r + ratio_1)
-                gl_inverse_2 = k_input / (r + ratio_2)
-                gl_inverses_1.append(quantize(gl_inverse_1, scale))
-                gl_inverses_2.append(quantize(gl_inverse_2, scale))
+                gl_inverse_1 = (1 - y_input) / (r - y_input * r + y_input + 1)
+                gl_inverse_2 = k_input * (1 - x_input) / (r - x_input * r + x_input + 1)
+                gl_inverses_1.append(quantize(gl_inverse_1, scale) % field_order)
+                gl_inverses_2.append(quantize(gl_inverse_2, scale) % field_order)
 
             gl_wits.append({
                 "inp_struct": {
@@ -362,23 +385,27 @@ if __name__ == "__main__":
                     "k": str(k_quantized) if k_quantized is not None else "0"
                 },
                 "wit_struct": {
-                    "ratio_term_1": str(quantize(ratio_1, scale)),
-                    "ratio_term_2": str(quantize(ratio_2, scale)),
                     "denom_inverses_1": [str(v) for v in gl_inverses_1],
-                    "denom_inverses_2": [str(v) for v in gl_inverses_2]
+                    "denom_inverses_2": [str(v) for v in gl_inverses_2],
+                    "mult_terms_1": [str(v) for v in mult_terms_1],
+                    "mult_terms_2": [str(v) for v in mult_terms_2],
                 }
             })
 
-            # Compute the sums
-            sum_check_1 = mpmath.mpf(0)
-            sum_check_2 = mpmath.mpf(0)
-            for j in range(n_points):
-                w = mpmath.mpf(weights[j])
-                r = mpmath.mpf(roots[j])
-                sum_check_1 += w / (r + ratio_1)
-                sum_check_2 += k_input * w / (r + ratio_2)
-            print(f"Input x: {mpmath.nstr(x_input, n=15)}")
-            print(f"Sum check error: {mpmath.nstr(sum_check_1 - sum_check_2, n=15)}")
+            # # Compute the sums
+            # log_x = mpmath.log(1/x_input)
+            # sum_check_1 = mpmath.mpf(0)
+            # sum_check_2 = mpmath.mpf(0)
+            # for j in range(n_points):
+            #     w = mpmath.mpf(weights[j])
+            #     r = mpmath.mpf(roots[j])
+            #     sum_check_1 += w / (r + (1 + y_input)/(1 - y_input))
+            #     sum_check_2 += w / (r + (1 + x_input)/(1 - x_input))
+
+            # print(f"x_input: {mpmath.nstr(x_input, n=15)}, y_input: {mpmath.nstr(y_input, n=15)}, k_input: {mpmath.nstr(k_input, n=15)}")
+            # print(f"Sum check 1 error: {mpmath.nstr(sum_check_1 - k_input * log_x, n=15)}")
+            # print(f"Sum check 2 error: {mpmath.nstr(sum_check_2 - log_x, n=15)}")
+            # print(f"Sum check diff: {mpmath.nstr((sum_check_1 - k_input * sum_check_2), n=15)}")
 
         elif function == "softmax":
             exp_witnesses = []

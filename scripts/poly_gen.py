@@ -8,6 +8,9 @@ field_order = 218882428718392752222464057452572750885483644004160343436982041865
 function_map = {
     "exp": mpmath.exp,
     "cos": mpmath.cos,
+    "tan": mpmath.tan,
+    "sigmoid": lambda x: 1 / (1 + mpmath.exp(-x)),
+    "tanh": mpmath.tanh,
 }
 
 def quantize(value, scale):

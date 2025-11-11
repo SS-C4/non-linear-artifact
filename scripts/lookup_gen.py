@@ -38,11 +38,11 @@ def generate_tables(log_base, log_scale, is_softmax=False):
         tables.append(row)
     return tables, scale
 
-def generate_cosine_table(log_scale):
+def generate_table(func, log_scale):
     scale = 2 ** log_scale
     table = []
     for j in range(scale):
-        val = mp.cos(mpf(j) / scale)
+        val = function_map[func](mpf(j) / scale)
         qval = int(mp.nint(val * scale))
         table.append(qval)
     return table, scale
@@ -121,6 +121,7 @@ function_map = {
     "sigmoid": "SigmoidLookupWitness",
     "tanh": "TanhLookupWitness",
     "cos": "CosineLookupWitness",
+    "tan": "TangentLookupWitness",
     "softmax": "SoftMaxLookupWitness"
 }
 
@@ -282,7 +283,7 @@ if __name__ == "__main__":
 
     elif func == "cos":
         cosine_wits = []
-        table, scale = generate_cosine_table(log_scale)
+        table, scale = generate_table("cos", log_scale)
 
         for i in range(num_inputs):
             x_input = mpf(mp.rand())
@@ -311,6 +312,40 @@ if __name__ == "__main__":
         with open("Prover.toml", "r+") as f:
             toml_data = toml.load(f)
             toml_data["lookup_wits"] = cosine_wits
+            f.seek(0)
+            toml.dump(toml_data, f)
+            f.truncate()
+
+    elif func == "tan":
+        tangent_wits = []
+        table, scale = generate_table("tan", log_scale)
+        for i in range(num_inputs):
+            x_input = mpf(mp.rand())
+            y = table[int(mp.nint(x_input * scale))] / scale
+            x_quantized = int(mp.nint(x_input * scale))
+            y_quantized = int(mp.nint(y * scale))
+
+            tangent_wits.append({
+                "inp_struct": {
+                    "x": str(x_quantized),
+                    "y": str(y_quantized),
+                    "vec_x": [str(x_quantized)],
+                    "vec_y": [str(y_quantized)],
+                    "k": "0",
+                },
+                "wit_struct": {
+                    "_dummy": "0",
+                }
+            })
+
+            if i == 0:
+                softmax_size = 1  # Not used for tangent
+                base = 2 ** log_base
+                write_to_constants(function_map[func], num_inputs, softmax_size, [], table, log_scale, log_base, [(0,0,0)])
+
+        with open("Prover.toml", "r+") as f:
+            toml_data = toml.load(f)
+            toml_data["lookup_wits"] = tangent_wits
             f.seek(0)
             toml.dump(toml_data, f)
             f.truncate()
