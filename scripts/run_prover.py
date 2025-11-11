@@ -24,6 +24,7 @@ def print_usage():
     print("\nExample:")
     print("  python run_prover.py lookup")
     print("  python run_prover.py gl_quad")
+    print("\nRun only after creating the witness using scripts/*.py")
 
 def update_main_nr(experiment):
     """Update main.nr to uncomment the specified experiment's main function."""

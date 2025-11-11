@@ -13,7 +13,9 @@ function_map = {
     "tan": "TangentWitness",
     "cos": "CosineWitness",
     "power": "PowerWitness",
-    "softmax": "SoftmaxWitness"
+    "softmax": "SoftmaxWitness",
+    "gelu": "GeluWitness",
+    "erf": "ErfWitness"
 }
 
 def quantize(value, scale):
@@ -100,13 +102,19 @@ if __name__ == "__main__":
         for w in quantized_weights:
             f.write(f"    {int(mpmath.mpf(w))},\n")
         f.write("];\n")
+        f.write(f"pub global COEFF_X3: Field = {int(mpmath.mpf(0.044715) * scale)};\n")
+        f.write(f"pub global SQRT_2_PI: Field = {int(mpmath.sqrt(2 / mpmath.pi) * scale)};\n")
+        f.write(f"pub global SQRT_PI: Field = {int(mpmath.sqrt(mpmath.pi) * scale)};\n")
 
     # Witness generation
     # y = f(x)
 
     gl_wits = []
     for i in range(int(num_inputs)):
-        x_input = mpmath.mpf(mpmath.rand()) + (0.1 if function == "power" else 0)
+        if function == "power":
+            x_input = mpmath.mpf(mpmath.rand()) + 1
+        else:
+            x_input = mpmath.mpf(mpmath.rand())
 
         softmax_inputs = [mpmath.mpf(mpmath.rand()) for _ in range(int(dim_softmax))] if function == "softmax" else None
         
@@ -122,6 +130,12 @@ if __name__ == "__main__":
             y_input = mpmath.tan(x_input)
         elif function == "cos":
             y_input = mpmath.cos(x_input)
+        elif function == "gelu":
+            tanh_input = mpmath.sqrt(2 / mpmath.pi) * (x_input + 0.044715 * x_input**3)
+            tanh_output = mpmath.tanh(tanh_input)
+            y_input = 0.5 * x_input * (1 + tanh_output)
+        elif function == "erf":
+            y_input = mpmath.erf(x_input)
         elif function == "power":
             if k is None:
                 print("Error: The 'power' function requires the additional parameter k.")
@@ -268,7 +282,7 @@ if __name__ == "__main__":
             for r in roots:
                 r = mpmath.mpf(r)
                 gl_inverse = y_input / (2 * y_input * r + 2)
-                gl_inverses.append(quantize(gl_inverse, scale))
+                gl_inverses.append(quantize(gl_inverse, scale) % field_order)
 
             gl_wits.append({
                 "inp_struct": {
@@ -283,16 +297,6 @@ if __name__ == "__main__":
                     "mult_terms": [str(v) for v in mult_terms],
                 }
             })
-
-            # Compute the sum
-            sum_check = mpmath.mpf(0)
-            for j in range(n_points):
-                w = mpmath.mpf(weights[j])
-                r = mpmath.mpf(roots[j])
-                sum_check += w / (2 * r + ratio)
-
-            print(f"Input: {mpmath.nstr(x_input, n=15)}")
-            print(f"Sum check error: {mpmath.nstr(sum_check - x_input, n=15)}")
 
         elif function == "tan":
             y_sq = y_input ** 2
@@ -357,6 +361,49 @@ if __name__ == "__main__":
                 }
             })
 
+        elif function == "gelu":
+            x_sq = x_input ** 2
+            x_scaled = 0.044715 * x_input
+            term_2 = x_scaled * x_sq
+            tanh_input = mpmath.sqrt(2 / mpmath.pi) * (x_input + 0.044715 * x_input**3)
+            tanh_output = mpmath.tanh(tanh_input)
+
+            mult_terms = []
+            gl_inverses = []
+
+            for r in roots:
+                r = mpmath.mpf(r)
+                mult_term = tanh_output * r
+                mult_terms.append(quantize(mult_term, scale) % field_order)
+            
+            for r in roots:
+                r = mpmath.mpf(r)
+                gl_inverse = tanh_output / (2 * tanh_output * r + 2)
+                gl_inverses.append(quantize(gl_inverse, scale))
+
+            tanh_wit = {
+                "denom_inverses": [str(v) for v in gl_inverses],
+                "mult_terms": [str(v) for v in mult_terms],
+            }
+
+            gl_wits.append({
+                "inp_struct": {
+                    "x": str(x_quantized),
+                    "y": str(y_quantized),
+                    "vec_x": [str(x_quantized)],
+                    "vec_y": [str(y_quantized)],
+                    "k": str(k_quantized) if k_quantized is not None else "0"
+                },
+                "wit_struct": {
+                    "x_sq": str(quantize(x_sq, scale)),
+                    "x_scaled": str(quantize(x_scaled, scale)),
+                    "term_2": str(quantize(term_2, scale)),
+                    "tanh_input": str(quantize(tanh_input, scale)),
+                    "tanh_output": str(quantize(tanh_output, scale)),
+                    "tanh_witness": tanh_wit
+                }
+            })
+
         elif function == "power":
             mult_terms_1 = []
             mult_terms_2 = []
@@ -392,20 +439,53 @@ if __name__ == "__main__":
                 }
             })
 
-            # # Compute the sums
-            # log_x = mpmath.log(1/x_input)
-            # sum_check_1 = mpmath.mpf(0)
-            # sum_check_2 = mpmath.mpf(0)
-            # for j in range(n_points):
-            #     w = mpmath.mpf(weights[j])
-            #     r = mpmath.mpf(roots[j])
-            #     sum_check_1 += w / (r + (1 + y_input)/(1 - y_input))
-            #     sum_check_2 += w / (r + (1 + x_input)/(1 - x_input))
+        elif function == "erf":
+            exp_inputs = []
+            exp_outputs = []
+            for r in roots_tan:
+                r = mpmath.mpf(r)
+                exp_input = x_input**2 / 4 * r
+                exp_output = mpmath.exp(-exp_input)
+                exp_inputs.append(exp_input)
+                exp_outputs.append(exp_output)
 
-            # print(f"x_input: {mpmath.nstr(x_input, n=15)}, y_input: {mpmath.nstr(y_input, n=15)}, k_input: {mpmath.nstr(k_input, n=15)}")
-            # print(f"Sum check 1 error: {mpmath.nstr(sum_check_1 - k_input * log_x, n=15)}")
-            # print(f"Sum check 2 error: {mpmath.nstr(sum_check_2 - log_x, n=15)}")
-            # print(f"Sum check diff: {mpmath.nstr((sum_check_1 - k_input * sum_check_2), n=15)}")
+            x_sq_by_4 = x_input ** 2 / 4
+            erf_sum = mpmath.sqrt(mpmath.pi) * y_input / x_input
+
+            # Fill in exp_witnesses
+            inv_exp_wits = []
+            for i in range(n_points):
+                mult_terms = []
+                gl_inverses = []
+
+                for r in roots:
+                    r = mpmath.mpf(r)
+                    mult_term = exp_outputs[i] * r
+                    mult_terms.append(quantize(mult_term, scale) % field_order)
+                    gl_inverse = (1 - exp_outputs[i]) / ( - exp_outputs[i] * r + r + 1 + exp_outputs[i])
+                    gl_inverses.append(quantize(gl_inverse, scale))
+
+                inv_exp_wits.append({
+                    "denom_inverses": [str(v) for v in gl_inverses],
+                    "mult_terms": [str(v) for v in mult_terms],
+                })
+
+            gl_wits.append({
+                "inp_struct": {
+                    "x": str(x_quantized),
+                    "y": str(y_quantized),
+                    "vec_x": [str(x_quantized)],
+                    "vec_y": [str(y_quantized)],
+                    "k": str(k_quantized) if k_quantized is not None else "0"
+                },
+                "wit_struct": {
+                    "inv_exp_witnesses": inv_exp_wits,
+                    "inv_exp_inputs": [str(quantize(val, scale)) for val in exp_inputs],
+                    "inv_exp_outputs": [str(quantize(val, scale)) for val in exp_outputs],
+                    "erf_sum": str(quantize(erf_sum, scale)),
+                    "x_sq_by_4": str(quantize(x_sq_by_4, scale))
+                }
+            })
 
         elif function == "softmax":
             exp_witnesses = []

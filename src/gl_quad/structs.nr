@@ -1,4 +1,4 @@
-use super::constants::{LOG_S, S, S_sq, N_POINTS, N_SOFTMAX, GL_ROOTS, GL_ROOTS_tan, GL_WEIGHTS};
+use super::constants::{LOG_S, S, S_sq, N_POINTS, N_SOFTMAX, GL_ROOTS, GL_ROOTS_tan, GL_WEIGHTS, COEFF_X3, SQRT_2_PI, SQRT_PI};
 
 // Common Trait
 pub trait GLFunction {
@@ -84,6 +84,28 @@ pub struct SoftmaxWitness {
     pub exp_outputs: [Field; N_SOFTMAX],
     pub denom_inverse: Field,
 }
+
+// y = gelu(x) = 0.5 * x * (1 + tanh(sqrt(2/pi) * (x + 0.044715 * x^3)))
+pub struct GeluWitness {
+    pub tanh_witness: TanhWitness,
+    pub tanh_input: Field, // sqrt(2/pi) * (x + 0.044715 * x^3)
+    pub tanh_output: Field, // tanh(tanh_input)
+    
+    pub x_scaled: Field, // 0.044715 * x
+    pub x_sq: Field, // x^2
+    pub term_2: Field, // x_scaled * x_sq
+}
+
+// y = erf(x)
+pub struct ErfWitness {
+    pub inv_exp_witnesses: [InverseExponentialWitness; N_POINTS],
+    pub inv_exp_inputs: [Field; N_POINTS], // x^2 / 4 * GL_ROOTS_tan[i]
+    pub inv_exp_outputs: [Field; N_POINTS],
+
+    pub erf_sum: Field, // rescaled quad sum check
+    pub x_sq_by_4: Field, // x^2 / 4
+}
+
  
 // Implementations
 impl GLFunction for ExponentialWitness {
@@ -236,8 +258,8 @@ impl GLFunction for TanhWitness {
         for i in 0..N_POINTS {
             rhs += GL_WEIGHTS[i] * self.denom_inverses[i];
         }
-        let error = lhs - rhs + 4*S;
-        error.assert_max_bit_size::<LOG_S + 3>();
+        let error = lhs - rhs + 16*S;
+        error.assert_max_bit_size::<LOG_S + 5>();
     }
 
     fn check_mult(self, inp: Input) {
@@ -371,14 +393,14 @@ impl GLFunction for PowerWitness {
         // Check inverses for first ratio
         for i in 0..N_POINTS {
             let term = GL_ROOTS[i] - self.mult_terms_1[i] + S + inp.y;
-            let error = (S - inp.y) * S - term * self.denom_inverses_1[i] + 16*S;
-            error.assert_max_bit_size::<LOG_S + 5>();
+            let error = (S - inp.y) * S - term * self.denom_inverses_1[i] + 4*S;
+            error.assert_max_bit_size::<LOG_S + 3>();
         }
         // Check inverses for second ratio
         for i in 0..N_POINTS {
             let term = GL_ROOTS[i] - self.mult_terms_2[i] + S + inp.x;
-            let error = (S - inp.x) * inp.k - term * self.denom_inverses_2[i] + 16*S;
-            error.assert_max_bit_size::<LOG_S + 5>();
+            let error = (S - inp.x) * inp.k - term * self.denom_inverses_2[i] + 4*S;
+            error.assert_max_bit_size::<LOG_S + 3>();
         }
     }
 
@@ -389,8 +411,8 @@ impl GLFunction for PowerWitness {
         for i in 0..N_POINTS {
             rhs += GL_WEIGHTS[i] * (self.denom_inverses_1[i] - self.denom_inverses_2[i]);
         }
-        let error = lhs - rhs + 512*S;
-        error.assert_max_bit_size::<LOG_S + 10>();
+        let error = lhs - rhs + 8*S;
+        error.assert_max_bit_size::<LOG_S + 4>();
     }
 
     fn check_mult(self, _inp: Input) {
@@ -477,4 +499,143 @@ impl GLFunction for SoftmaxWitness {
             error.assert_max_bit_size::<LOG_S + 8>();
         }
     }
+}
+
+impl GLFunction for GeluWitness {
+    fn check_y_bound(self, _inp: Input) {
+        // No need to check y bound for gelu
+    }
+
+    fn check_ratio(self, _inp: Input) {
+        // No ratio check for gelu
+    }
+
+    fn check_inverse(self, _inp: Input) {
+        // Check tanh inverse
+        self.tanh_witness.check_inverse(Input {
+            x: self.tanh_input,
+            y: self.tanh_output,
+            vec_x: _inp.vec_x,
+            vec_y: _inp.vec_y,
+            k: 0,
+        });
+    }
+
+    fn check_sum(self, _inp: Input) {
+        // Check tanh sum
+        self.tanh_witness.check_sum(Input {
+            x: self.tanh_input,
+            y: self.tanh_output,
+            vec_x: _inp.vec_x,
+            vec_y: _inp.vec_y,
+            k: 0,
+        });
+    }
+
+    fn check_mult(self, inp: Input) {
+        // Check tanh mult
+        self.tanh_witness.check_mult(Input {
+            x: self.tanh_input,
+            y: self.tanh_output,
+            vec_x: inp.vec_x,
+            vec_y: inp.vec_y,
+            k: 0,
+        });
+
+        // Check x_sq = x * x
+        let error = self.x_sq * S - inp.x * inp.x + 2*S;
+        error.assert_max_bit_size::<LOG_S + 2>();
+
+        // Check x_scaled = 0.044715 * x
+        let error = self.x_scaled * S - inp.x * COEFF_X3 + 2*S;
+        println(error);
+        error.assert_max_bit_size::<LOG_S + 2>();
+
+        // Check term_2 = x_scaled * x_sq 
+        let error = self.term_2 * S - self.x_scaled * self.x_sq + 2*S;
+        error.assert_max_bit_size::<LOG_S + 2>();
+
+        // Check tanh_input = sqrt(2/pi) * (x + term_2)
+        let error = (inp.x + self.term_2) * SQRT_2_PI - self.tanh_input * S + 4*S;
+        error.assert_max_bit_size::<LOG_S + 3>();
+
+        // Check gelu output: 2 * y = x * (1 + tanh_output)
+        let error = 2 * inp.y * S - inp.x * (S + self.tanh_output) + 4*S;
+        error.assert_max_bit_size::<LOG_S + 3>();
+    }
+}
+
+impl GLFunction for ErfWitness {
+    fn check_y_bound(self, inp: Input) {
+        inp.y.assert_max_bit_size::<LOG_S>();
+        for i in 0..N_POINTS {
+            self.inv_exp_outputs[i].assert_max_bit_size::<LOG_S>();
+        }
+    }
+
+    fn check_ratio(self, _inp: Input) {
+        // No ratio check for erf
+    }
+
+    fn check_inverse(self, inp: Input) {
+        // Check inverses
+        for i in 0..N_POINTS {
+            self.inv_exp_witnesses[i].check_inverse(Input {
+                x: self.inv_exp_inputs[i],
+                y: self.inv_exp_outputs[i],
+                vec_x: inp.vec_x,
+                vec_y: inp.vec_y,
+                k: 0,
+            });
+        }
+    }
+
+    fn check_sum(self, inp: Input) {
+        for i in 0..N_POINTS {
+            self.inv_exp_witnesses[i].check_sum(Input {
+                x: self.inv_exp_inputs[i],
+                y: self.inv_exp_outputs[i],
+                vec_x: inp.vec_x,
+                vec_y: inp.vec_y,
+                k: 0,
+            });
+        }
+
+        // Check sum for erf
+        let lhs = self.erf_sum * S;
+        let mut rhs = 0;
+        for i in 0..N_POINTS {
+            rhs += GL_WEIGHTS[i] * self.inv_exp_outputs[i];
+        }
+        let error = lhs - rhs + 8*S;
+        error.assert_max_bit_size::<LOG_S + 4>();
+
+    }
+
+    fn check_mult(self, inp: Input) {
+        for i in 0..N_POINTS {
+            self.inv_exp_witnesses[i].check_mult(Input {
+                x: self.inv_exp_inputs[i],
+                y: self.inv_exp_outputs[i],
+                vec_x: inp.vec_x,
+                vec_y: inp.vec_y,
+                k: 0,
+            });
+        }
+        
+        // Check x_sq_by_4 = x^2 / 4
+        let error = 4 * self.x_sq_by_4 * S - inp.x * inp.x + 8*S;
+        error.assert_max_bit_size::<LOG_S + 4>();
+
+        // Check inv_exp_inputs = x_sq_by_4 * GL_ROOTS_tan[i]
+        for i in 0..N_POINTS {
+            let error = self.inv_exp_inputs[i] * S - self.x_sq_by_4 * GL_ROOTS_tan[i] + 4*S;
+            error.assert_max_bit_size::<LOG_S + 3>();
+        }
+
+        // Check erf output
+        let error = inp.y * SQRT_PI - self.erf_sum * inp.x + 8*S;
+        error.assert_max_bit_size::<LOG_S + 4>();
+    }
+
 }
