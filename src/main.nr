@@ -18,32 +18,63 @@ use poly_approx::{constants::NUM_INPUTS as POLY_NUM, PolyWitness};
 pub mod pade_approx;
 use pade_approx::{constants::NUM_INPUTS as PADE_NUM, PadeWitness};
 
-fn main(
-    _lookup_wits: [LookupWitness<LOOKUP_FUNC_TYPE>; LOOKUP_NUM],
-    // _gl_wits: [GLWitness<GL_FUNC_TYPE>; GL_NUM],
-    // _pwl_wits: [PWLWitness; PWL_NUM],
-    // _poly_wits: [PolyWitness; POLY_NUM],
-    // _pade_wits: [PadeWitness; PADE_NUM],
-) {
-    for lookup_wit in _lookup_wits {
-        lookup::check_lookup(lookup_wit);
+// Experiment functions
+#[allow(dead_code)]
+fn run_lookup_experiment(wits: [LookupWitness<LOOKUP_FUNC_TYPE>; LOOKUP_NUM]) {
+    for wit in wits {
+        lookup::check_lookup(wit);
     }
-    // for cosine_wit in _cosine_wits {
-    //     exp_lookup::check_cosine_lookup(cosine_wit);
-    // }
-    // for gl_wit in _gl_wits {
-    //     gl_quad::check_gl_quad(gl_wit);
-    // }
-    // for pwl_wit in _pwl_wits {
-    //     pwl::check_pwl_approx(pwl_wit);
-    // }
-    // for poly_wit in _poly_wits {
-    //     poly_approx::check_poly_approx(poly_wit);
-    // }
-    // for pade_wit in _pade_wits {
-    //     pade_approx::check_pade_approx(pade_wit);
-    // }
-    // for softmax_wit in _softmax_wits {
-    //     exp_lookup::check_softmax_lookup(softmax_wit);
-    // }
 }
+
+#[allow(dead_code)]
+fn run_gl_quad_experiment(wits: [GLWitness<GL_FUNC_TYPE>; GL_NUM]) {
+    for wit in wits {
+        gl_quad::check_gl_quad(wit);
+    }
+}
+
+#[allow(dead_code)]
+fn run_pwl_experiment(wits: [PWLWitness; PWL_NUM]) {
+    for wit in wits {
+        pwl::check_pwl_approx(wit);
+    }
+}
+
+#[allow(dead_code)]
+fn run_poly_experiment(wits: [PolyWitness; POLY_NUM]) {
+    for wit in wits {
+        poly_approx::check_poly_approx(wit);
+    }
+}
+
+#[allow(dead_code)]
+fn run_pade_experiment(wits: [PadeWitness; PADE_NUM]) {
+    for wit in wits {
+        pade_approx::check_pade_approx(wit);
+    }
+}
+
+// // Main function for LOOKUP
+// fn  main(lookup_wits: [LookupWitness<LOOKUP_FUNC_TYPE>; LOOKUP_NUM]) {
+//     run_lookup_experiment(lookup_wits);
+// }
+
+// // Main function for GL_QUAD
+fn main(gl_wits: [GLWitness<GL_FUNC_TYPE>; GL_NUM]) {
+    run_gl_quad_experiment(gl_wits);
+}
+
+// // Main function for PWL
+// fn main(pwl_wits: [PWLWitness; PWL_NUM]) {
+//     run_pwl_experiment(pwl_wits);
+// }
+
+// // Main function for POLY
+// fn main(poly_wits: [PolyWitness; POLY_NUM]) {
+//     run_poly_experiment(poly_wits);
+// }
+
+// // Main function for PADE
+// fn main(pade_wits: [PadeWitness; PADE_NUM]) {
+//     run_pade_experiment(pade_wits);
+// }

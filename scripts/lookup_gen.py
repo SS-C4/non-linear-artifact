@@ -206,7 +206,7 @@ if __name__ == "__main__":
         # Witness in Prover.toml
         with open("Prover.toml", "r+") as f:
             toml_data = toml.load(f)
-            toml_data["_lookup_wits"] = exp_wits
+            toml_data["lookup_wits"] = exp_wits
             f.seek(0)
             toml.dump(toml_data, f)
             f.truncate()
@@ -275,7 +275,7 @@ if __name__ == "__main__":
         # Witness in Prover.toml
         with open("Prover.toml", "r+") as f:
             toml_data = toml.load(f)
-            toml_data["_lookup_wits"] = softmax_wits
+            toml_data["lookup_wits"] = softmax_wits
             f.seek(0)
             toml.dump(toml_data, f)
             f.truncate()
@@ -310,7 +310,7 @@ if __name__ == "__main__":
 
         with open("Prover.toml", "r+") as f:
             toml_data = toml.load(f)
-            toml_data["_lookup_wits"] = cosine_wits
+            toml_data["lookup_wits"] = cosine_wits
             f.seek(0)
             toml.dump(toml_data, f)
             f.truncate()

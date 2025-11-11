@@ -85,7 +85,7 @@ if __name__ == "__main__":
 
     with open("Prover.toml", "r+") as f:
         toml_data = toml.load(f)
-        toml_data["_pwl_wits"] = pwl_wits
+        toml_data["pwl_wits"] = pwl_wits
         f.seek(0)
         toml.dump(toml_data, f)
         f.truncate()
