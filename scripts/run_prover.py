@@ -147,8 +147,8 @@ def run_bb_prove():
             ],
             cwd=Path(__file__).parent.parent,
             capture_output=True,
-            text=True
-            # No timeout - wait for the command to complete
+            text=True,
+            timeout=600
         )
 
         # Combine stdout and stderr
@@ -307,6 +307,7 @@ def main():
         sys.exit(1)
     
     experiment = sys.argv[1].lower()
+    quiet = len(sys.argv) > 2 and sys.argv[2] == "--quiet"
     
     if experiment in ["-h", "--help", "help"]:
         print_usage()
@@ -339,18 +340,22 @@ def main():
     proof_size = get_proof_size()
     
     # Print summary
-    print(f"\n{'='*60}")
-    print(f"Experiment: {experiment.upper()}")
-    print(f"{'='*60}")
-    if pk_time is not None:
-        print(f"Proving Key Time: {pk_time} ms")
-    if prover_time is not None:
-        print(f"Prover Time:      {prover_time} ms")
-    if verifier_time is not None:
-        print(f"Verifier Time:    {verifier_time:.2f} ms")
-    if proof_size is not None:
-        print(f"Proof Size:       {proof_size}")
-    print(f"{'='*60}")
+    if not quiet:
+        print(f"\n{'='*60}")
+        print(f"Experiment: {experiment.upper()}")
+        print(f"{'='*60}")
+        if pk_time is not None:
+            print(f"Proving Key Time: {pk_time} ms")
+        if prover_time is not None:
+            print(f"Prover Time:      {prover_time} ms")
+        if verifier_time is not None:
+            print(f"Verifier Time:    {verifier_time:.2f} ms")
+        if proof_size is not None:
+            print(f"Proof Size:       {proof_size}")
+        print(f"{'='*60}")
+    else:
+        # For quiet mode, just return the data
+        print(f"{pk_time},{prover_time},{verifier_time},{proof_size}")
     
     sys.exit(0)
 

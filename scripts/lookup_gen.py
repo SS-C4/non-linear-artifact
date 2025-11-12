@@ -168,7 +168,7 @@ if __name__ == "__main__":
     elif len(sys.argv) > 5:
         print("Warning: Extra arguments ignored.")
 
-    if func == "cos":
+    if func == "cos" or func == "tan" or func == "erf":
         assert log_base == log_scale, "Cannot decompose table"
 
     if log_scale % log_base != 0:

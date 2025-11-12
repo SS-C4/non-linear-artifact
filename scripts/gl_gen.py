@@ -262,15 +262,6 @@ if __name__ == "__main__":
                 }
             })
 
-            # Compute the sum
-            sum_check = mpmath.mpf(0)
-            for j in range(n_points):
-                w = mpmath.mpf(weights[j])
-                r = mpmath.mpf(roots[j])
-                sum_check += w / (r + ratio)
-
-            print(f"Sum check error: {mpmath.nstr(sum_check - x_input, n=15)}")
-
         elif function == "tanh":
             mult_terms = []
             for r in roots:

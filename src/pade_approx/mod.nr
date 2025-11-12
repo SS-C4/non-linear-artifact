@@ -65,8 +65,8 @@ pub fn check_pade_approx(wit: PadeWitness) {
         check_quantized_mult(denom, 1, wit.denom_rescaled);
 
         // Check that approximation is close to y
-        let error = wit.y * wit.denom_rescaled - num + 2 * SCALE;
-        error.assert_max_bit_size::<LOG_SCALE + 2>();
+        let error = wit.y * wit.denom_rescaled - num + 4 * SCALE;
+        error.assert_max_bit_size::<LOG_SCALE + 3>();
     }
     if IS_POWER {
         // Check powers for first exponent

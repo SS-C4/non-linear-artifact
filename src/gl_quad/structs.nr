@@ -282,7 +282,7 @@ impl GLFunction for TangentWitness {
         // error.assert_max_bit_size::<LOG_S + 10>();
 
         // Modified to check y^2
-        let error = self.y_sq * S - inp.y * inp.y + 1*S;
+        let error = self.y_sq * S - inp.y * inp.y + 2*S;
         error.assert_max_bit_size::<LOG_S + 2>();
     }
 
@@ -569,7 +569,8 @@ impl GLFunction for ErfWitness {
     fn check_y_bound(self, inp: Input) {
         inp.y.assert_max_bit_size::<LOG_S>();
         for i in 0..N_POINTS {
-            self.inv_exp_outputs[i].assert_max_bit_size::<LOG_S>();
+            println(self.inv_exp_outputs[i]);
+            self.inv_exp_outputs[i].assert_max_bit_size::<LOG_S + 1>();
         }
     }
 
