@@ -193,10 +193,9 @@ def run_bb_verify():
     """Run bb verify and extract verifier time."""
     print("\nRunning bb verify...")
     try:
-        # Use time command via shell to get timing information
-        # Run with explicit shell invocation to capture time output
+        # Run with BB_BENCH=1 to get benchmark output
         result = subprocess.run(
-            "/usr/bin/time -p bb verify -v -p ./target/proof -k ./target/vk 2>&1",
+            "BB_BENCH=1 bb verify -v -p ./target/proof -k ./target/vk",
             cwd=Path(__file__).parent.parent,
             capture_output=True,
             text=True,
@@ -204,21 +203,14 @@ def run_bb_verify():
             timeout=60
         )
         
-        # Output contains both bb verify output and time stats
+        # Output contains both bb verify output and benchmark stats
         output = result.stdout + result.stderr
         
-        # Extract real time from POSIX time format: "real 0.03"
-        time_match = re.search(r'real\s+([\d.]+)', output)
-        print(time_match)
+        # Extract time from BB_BENCH format: "Total: 2 functions, 2 measurements, 7.33 ms"
+        time_match = re.search(r'Total:.*?([\d.]+)\s*ms', output)
         verifier_time = None
         if time_match:
-            # Convert seconds to milliseconds
-            verifier_time = float(time_match.group(1)) * 1000
-        else:
-            # Try zsh time format: "0.03s user 0.00s system 96% cpu 0.033 total"
-            time_match = re.search(r'([\d.]+)\s+total', output)
-            if time_match:
-                verifier_time = float(time_match.group(1)) * 1000
+            verifier_time = float(time_match.group(1))
         
         # Check if command succeeded (look for success message)
         if "Proof verified successfully" not in output and "verified: 1" not in output:
@@ -240,7 +232,7 @@ def run_bb_verify():
         print("✗ Failed: bb verify timed out after 60 seconds")
         return None
     except FileNotFoundError:
-        print("✗ Failed: 'bb' or 'time' command not found")
+        print("✗ Failed: 'bb' command not found")
         return None
     except Exception as e:
         print(f"✗ Failed: Error running bb verify: {e}")

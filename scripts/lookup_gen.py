@@ -1,6 +1,6 @@
 import sys
 import toml
-from mpmath import mp, mpf, exp
+from mpmath import mp, mpf, exp, sqrt, pi
 
 mp.dps = 100  # high precision
 field_order = 21888242871839275222246405745257275088548364400416034343698204186575808495617
@@ -42,7 +42,7 @@ def generate_table(func, log_scale):
     scale = 2 ** log_scale
     table = []
     for j in range(scale):
-        val = function_map[func](mpf(j) / scale)
+        val = func(mpf(j) / scale)
         qval = int(mp.nint(val * scale))
         table.append(qval)
     return table, scale
@@ -110,18 +110,23 @@ def write_to_constants(func_type, num_inputs, softmax_size, tables, custom_table
             f.write("    [{}],\n".format(", ".join(map(str, table))))
         f.write("];\n")
         if len(custom_table) > 0:
-            f.write("pub global COSINE_TABLE: [Field; {}] = [\n".format(len(custom_table)))
+            f.write("pub global CUSTOM_TABLE: [Field; {}] = [\n".format(len(custom_table)))
             f.write("    {},\n".format(", ".join(map(str, custom_table))))
             f.write("];\n")
         else:
-            f.write("pub global COSINE_TABLE: [Field; 0] = [];\n")
+            f.write("pub global CUSTOM_TABLE: [Field; 0] = [];\n")
+        f.write(f"pub global COEFF_X3: Field = {int(mpf(0.044715) * scale)};\n")
+        f.write(f"pub global SQRT_2_PI: Field = {int(sqrt(2 / pi) * scale)};\n")
 
 function_map = {
     "inv_exp": "InvExpLookupWitness",
     "sigmoid": "SigmoidLookupWitness",
+    "gelu": "GeluLookupWitness",
+    "erf": "ErfLookupWitness",
+    "power": "PowerLookupWitness",
     "tanh": "TanhLookupWitness",
     "cos": "CosineLookupWitness",
-    "tan": "TangentLookupWitness",
+    "tan": "TanLookupWitness",
     "softmax": "SoftMaxLookupWitness"
 }
 
@@ -212,6 +217,52 @@ if __name__ == "__main__":
             toml.dump(toml_data, f)
             f.truncate()
 
+    elif func == "sigmoid":
+        sigmoid_wits = []
+        tables, scale = generate_tables(log_base, log_scale, is_softmax=False)
+
+        for i in range(num_inputs):
+            x_input = mpf(mp.rand())
+            exp_output = exp(-x_input)
+            y = 1 / (1 + exp(-x_input))
+
+            qx, coeffs, scale, base = quantize_and_decompose(x_input, log_base, log_scale)
+
+            lookup_outputs = [tables[i][coeffs[i]] for i in range(len(coeffs))]
+            data_vector, mult_ops = build_binary_tree_multiplication(lookup_outputs)
+
+            if i == 0:
+                softmax_size = 1  # Not used for sigmoid
+                write_to_constants(function_map[func], num_inputs, softmax_size, tables, [], log_scale, log_base, mult_ops)
+
+            x_quantized = int(mp.nint(mpf(x_input) * scale))
+            y_quantized = int(mp.nint(y * scale))
+
+            sigmoid_wits.append({
+                "inp_struct": {
+                    "x": str(x_quantized),
+                    "y": str(y_quantized),
+                    "vec_x": [str(x_quantized)],
+                    "vec_y": [str(y_quantized)],
+                    "k": "0",
+                },
+                "wit_struct": {
+                    "exp_output": str(int(mp.nint(exp_output * scale))),
+                    "inv_exp_wit": {
+                        "x_decomp": [str(c) for c in coeffs],
+                        "lookup_mults": [str(v) for v in data_vector],
+                    },
+                }
+            })
+
+        # Witness in Prover.toml
+        with open("Prover.toml", "r+") as f:
+            toml_data = toml.load(f)
+            toml_data["lookup_wits"] = sigmoid_wits
+            f.seek(0)
+            toml.dump(toml_data, f)
+            f.truncate()
+
     elif func == "softmax":
         softmax_wits = []
         tables, scale = generate_tables(log_base, log_scale, is_softmax=True)
@@ -283,7 +334,7 @@ if __name__ == "__main__":
 
     elif func == "cos":
         cosine_wits = []
-        table, scale = generate_table("cos", log_scale)
+        table, scale = generate_table(mp.cos, log_scale)
 
         for i in range(num_inputs):
             x_input = mpf(mp.rand())
@@ -318,7 +369,7 @@ if __name__ == "__main__":
 
     elif func == "tan":
         tangent_wits = []
-        table, scale = generate_table("tan", log_scale)
+        table, scale = generate_table(mp.tan, log_scale)
         for i in range(num_inputs):
             x_input = mpf(mp.rand())
             y = table[int(mp.nint(x_input * scale))] / scale
@@ -350,4 +401,206 @@ if __name__ == "__main__":
             toml.dump(toml_data, f)
             f.truncate()
 
+    elif func == "power":
+        power_wits = []
+        tables, scale = generate_tables(log_base, log_scale, is_softmax=False)
 
+        for i in range(num_inputs):
+            x_input = mpf(mp.rand())
+            y = exp(k * mp.log(x_input))
+            x_quantized = int(mp.nint(mpf(x_input) * scale))
+            y_quantized = int(mp.nint(mpf(y) * scale))
+
+            log_x = mp.log(x_input)
+            k_log_x = k * log_x
+
+            # x = exp(log_x)
+            qx, coeffs, scale, base = quantize_and_decompose(log_x, log_base, log_scale)
+            lookup_outputs = [tables[i][coeffs[i]] for i in range(len(coeffs))]
+            data_vector, mult_ops = build_binary_tree_multiplication(lookup_outputs)
+
+            inv_exp_wit_x = {
+                "x_decomp": [str(c) for c in coeffs],
+                "lookup_mults": [str(v) for v in data_vector],
+            }
+
+            # y = exp(k * log_x)
+            qx, coeffs, scale, base = quantize_and_decompose(k_log_x, log_base, log_scale)
+            lookup_outputs = [tables[i][coeffs[i]] for i in range(len(coeffs))]
+            data_vector, mult_ops = build_binary_tree_multiplication(lookup_outputs)
+
+            inv_exp_wit_y = {
+                "x_decomp": [str(c) for c in coeffs],
+                "lookup_mults": [str(v) for v in data_vector],
+            }
+
+            if i == 0 and j == 0:
+                write_to_constants(function_map[func], num_inputs, softmax_size, tables, [], log_scale, log_base, mult_ops)
+
+            power_wits.append({
+                "inp_struct": {
+                    "x": str(x_quantized),
+                    "y": str(y_quantized),
+                    "vec_x": [str(x_quantized)],
+                    "vec_y": [str(y_quantized)],
+                    "k": str(k_quantized),
+                },
+                "wit_struct": {
+                    "inv_exp_wit_x": inv_exp_wit_x,
+                    "inv_exp_wit_y": inv_exp_wit_y,
+                    "log_x": str(int(mp.nint(log_x * scale))),
+                    "k_log_x": str(int(mp.nint(k_log_x * scale))),
+                }
+            })
+
+        # Witness in Prover.toml
+        with open("Prover.toml", "r+") as f:
+            toml_data = toml.load(f)
+            toml_data["lookup_wits"] = power_wits
+            f.seek(0)
+            toml.dump(toml_data, f)
+            f.truncate()
+
+    elif func == "tanh":
+        tanh_wits = []
+        tables, scale = generate_tables(log_base, log_scale, is_softmax=False)
+
+        for i in range(num_inputs):
+            x_input = mpf(mp.rand())
+            y = mp.tanh(x_input)
+            exp_output = exp(- x_input)
+            out_sq = exp_output * exp_output
+
+            qx, coeffs, scale, base = quantize_and_decompose(x_input, log_base, log_scale)
+
+            lookup_outputs = [tables[i][coeffs[i]] for i in range(len(coeffs))]
+            data_vector, mult_ops = build_binary_tree_multiplication(lookup_outputs)
+
+            if i == 0:
+                softmax_size = 1  # Not used for tanh
+                write_to_constants(function_map[func], num_inputs, softmax_size, tables, [], log_scale, log_base, mult_ops)
+
+            x_quantized = int(mp.nint(mpf(x_input) * scale))
+            y_quantized = int(mp.nint(mpf(y) * scale))
+
+            tanh_wits.append({
+                "inp_struct": {
+                    "x": str(x_quantized),
+                    "y": str(y_quantized),
+                    "vec_x": [str(x_quantized)],
+                    "vec_y": [str(y_quantized)],
+                    "k": "0",
+                },
+                "wit_struct": {
+                    "exp_output": str(int(mp.nint(exp_output * scale))),
+                    "out_sq": str(int(mp.nint(out_sq * scale))),
+                    "inv_exp_witness": {
+                        "x_decomp": [str(c) for c in coeffs],
+                        "lookup_mults": [str(v) for v in data_vector],
+                    }
+                }
+            })
+
+        # Witness in Prover.toml
+        with open("Prover.toml", "r+") as f:
+            toml_data = toml.load(f)
+            toml_data["lookup_wits"] = tanh_wits
+            f.seek(0)
+            toml.dump(toml_data, f)
+            f.truncate()
+
+    elif func == "gelu":
+        gelu_wits = []
+        tables, scale = generate_tables(log_base, log_scale, is_softmax=False)
+
+        for i in range(num_inputs):
+            x_input = mpf(mp.rand())
+            x_sq = x_input * x_input
+            x_scaled = x_input * 0.044715
+            term_2 = x_scaled * x_sq
+            tanh_input = sqrt(2 / pi) * (x_input + 0.044715 * x_input**3)
+            exp_output = exp(- tanh_input)
+            out_sq = exp_output * exp_output
+            tanh_output = mp.tanh(tanh_input)
+            y = 0.5 * x_input * (1 + tanh_output)
+
+            x_quantized = int(mp.nint(mpf(x_input) * scale))
+            y_quantized = int(mp.nint(mpf(y) * scale))
+
+            qx, coeffs, scale, base = quantize_and_decompose(tanh_input, log_base, log_scale)
+            lookup_outputs = [tables[i][coeffs[i]] for i in range(len(coeffs))]
+            data_vector, mult_ops = build_binary_tree_multiplication(lookup_outputs)
+
+            if i == 0:
+                softmax_size = 1  # Not used for gelu
+                write_to_constants(function_map[func], num_inputs, softmax_size, tables, [], log_scale, log_base, mult_ops)
+
+            gelu_wits.append({
+                "inp_struct": {
+                    "x": str(x_quantized),
+                    "y": str(y_quantized),
+                    "vec_x": [str(x_quantized)],
+                    "vec_y": [str(y_quantized)],
+                    "k": "0",
+                },
+                "wit_struct": {
+                    "x_sq": str(int(mp.nint(x_sq * scale))),
+                    "x_scaled": str(int(mp.nint(x_scaled * scale))),
+                    "term_2": str(int(mp.nint(term_2 * scale))),
+                    "tanh_input": str(int(mp.nint(tanh_input * scale))),
+                    "tanh_output": str(int(mp.nint(tanh_output * scale))),
+                    "tanh_lookup_witness": {
+                        "exp_output": str(int(mp.nint(exp_output * scale))),
+                        "out_sq": str(int(mp.nint(out_sq * scale))),
+                        "inv_exp_witness": {
+                            "x_decomp": [str(c) for c in coeffs],
+                            "lookup_mults": [str(v) for v in data_vector],
+                        }
+                    }
+                }
+            })
+
+        # Witness in Prover.toml
+        with open("Prover.toml", "r+") as f:
+            toml_data = toml.load(f)
+            toml_data["lookup_wits"] = gelu_wits
+            f.seek(0)
+            toml.dump(toml_data, f)
+            f.truncate()
+
+    elif func == "erf":
+        erf_wits = []
+        table, scale = generate_table(mp.erf, log_scale)
+
+        for i in range(num_inputs):
+            x_input = mpf(mp.rand())
+            y = table[int(mp.nint(x_input * scale))] / scale
+            x_quantized = int(mp.nint(x_input * scale))
+            y_quantized = int(mp.nint(y * scale))
+
+            erf_wits.append({
+                "inp_struct": {
+                    "x": str(x_quantized),
+                    "y": str(y_quantized),
+                    "vec_x": [str(x_quantized)],
+                    "vec_y": [str(y_quantized)],
+                    "k": "0",
+                },
+                "wit_struct": {
+                    "_dummy": "0",
+                }
+            })
+
+            if i == 0:
+                softmax_size = 1  # Not used for erf
+                base = 2 ** log_base
+                write_to_constants(function_map[func], num_inputs, softmax_size, [], table, log_scale, log_base, [(0,0,0)])
+
+        with open("Prover.toml", "r+") as f:
+            toml_data = toml.load(f)
+            toml_data["lookup_wits"] = erf_wits
+            f.seek(0)
+            toml.dump(toml_data, f)
+            f.truncate()
+
+        

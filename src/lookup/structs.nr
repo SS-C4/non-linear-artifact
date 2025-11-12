@@ -1,4 +1,4 @@
-use super::constants::{LOG_BASE, BASE_POWERS, LOG_S, S, MULT_OPS, NUM_TABLES, NUM_SOFTMAX, EXP_TABLES, COSINE_TABLE};
+use super::constants::{LOG_BASE, BASE_POWERS, LOG_S, S, MULT_OPS, NUM_TABLES, NUM_SOFTMAX, EXP_TABLES, CUSTOM_TABLE, COEFF_X3, SQRT_2_PI};
 
 pub trait LookupFunction {
     fn check_lookup(self, inp: Input);
@@ -37,9 +37,45 @@ pub struct CosineLookupWitness {
     _dummy: Field,
 }
 
+pub struct TanLookupWitness {
+    // Witness
+    _dummy: Field,
+}
+
 pub struct TanhLookupWitness {
     // Witness
+    exp_output: Field,
+    out_sq: Field,
     inv_exp_witness: InvExpLookupWitness,
+}
+
+pub struct SigmoidLookupWitness {
+    // Witness
+    exp_output: Field,
+    inv_exp_witness: InvExpLookupWitness,
+}
+
+pub struct GeluLookupWitness {
+    // Witness
+    tanh_lookup_witness: TanhLookupWitness,
+    x_sq: Field,
+    x_scaled: Field,
+    term_2: Field,
+    tanh_input: Field,
+    tanh_output: Field,
+}
+
+pub struct PowerLookupWitness {
+    // Witness
+    log_x: Field,
+    k_log_x: Field,
+    inv_exp_witness_x: InvExpLookupWitness,
+    inv_exp_witness_y: InvExpLookupWitness,
+}
+
+pub struct ErfLookupWitness {
+    // Witness
+    _dummy: Field,
 }
 
 impl LookupFunction for InvExpLookupWitness {
@@ -59,6 +95,43 @@ impl LookupFunction for CosineLookupWitness {
         check_cosine_lookup(inp, self);
     }
 }
+
+impl LookupFunction for TanLookupWitness {
+    fn check_lookup(self, inp: Input) {
+        check_tan_lookup(inp, self);
+    }
+}
+
+impl LookupFunction for TanhLookupWitness {
+    fn check_lookup(self, inp: Input) {
+        check_tanh_lookup(inp, self);
+    }
+}
+
+impl LookupFunction for SigmoidLookupWitness {
+    fn check_lookup(self, inp: Input) {
+        check_sigmoid_lookup(inp, self);
+    }
+}
+
+impl LookupFunction for GeluLookupWitness {
+    fn check_lookup(self, inp: Input) {
+        check_gelu_lookup(inp, self);
+    }
+}
+
+impl LookupFunction for PowerLookupWitness {
+    fn check_lookup(self, inp: Input) {
+        check_power_lookup(inp, self);
+    }
+}
+
+impl LookupFunction for ErfLookupWitness {
+    fn check_lookup(self, inp: Input) {
+        check_erf_lookup(inp, self);
+    }
+}
+
 
 fn check_decomp(x: Field, decomp: [Field; NUM_TABLES]) {
     // Check that the decomposition reconstructs the original value
@@ -113,6 +186,114 @@ pub fn check_inv_exp_lookup(inp: Input, wit: InvExpLookupWitness) {
     error.assert_max_bit_size::<5>();
 }
 
+pub fn check_tanh_lookup(inp: Input, wit: TanhLookupWitness) {
+    // Check that exp_output == exp(-x)
+    check_inv_exp_lookup(
+        Input {
+            x: inp.x,
+            y: wit.exp_output,
+            vec_x: [0; NUM_SOFTMAX],
+            vec_y: [0; NUM_SOFTMAX],
+            k: 0,
+        },
+        wit.inv_exp_witness,
+    );
+
+    // Check that out_sq == exp_output^2
+    let error = inp.y * inp.y - wit.exp_output * wit.exp_output;
+    error.assert_max_bit_size::<4>();
+
+    // Check tanh(x) = (1 - exp(-2x)) / (1 + exp(-2x))
+    let error = inp.y * (S + wit.out_sq) - (S - wit.out_sq) * S + 8 * S;
+    error.assert_max_bit_size::<4>();
+}
+
+pub fn check_sigmoid_lookup(inp: Input, wit: SigmoidLookupWitness) {
+    // Check that exp_output == exp(-x)
+    check_inv_exp_lookup(
+        Input {
+            x: inp.x,
+            y: wit.exp_output,
+            vec_x: [0; NUM_SOFTMAX],
+            vec_y: [0; NUM_SOFTMAX],
+            k: 0,
+        },
+        wit.inv_exp_witness,
+    );
+
+    // Check that denom_inverse is the inverse of (1 + exp_output)
+    let error = inp.y * (S + wit.exp_output) - S * S + 8 * S;
+    error.assert_max_bit_size::<4>();
+}
+
+pub fn check_gelu_lookup(inp: Input, wit: GeluLookupWitness) {
+    // Check that tanh_output == tanh(tanh_input)
+    check_tanh_lookup(
+        Input {
+            x: wit.tanh_input,
+            y: wit.tanh_output,
+            vec_x: [0; NUM_SOFTMAX],
+            vec_y: [0; NUM_SOFTMAX],
+            k: 0,
+        },
+        wit.tanh_lookup_witness,
+    );
+
+    // Check x_sq == x * x
+    let error = wit.x_sq * S - inp.x * inp.x + 8 * S;
+    error.assert_max_bit_size::<4>();
+
+    // Check x_scaled == 0.044715 * x
+    let error = wit.x_scaled * S - inp.x * COEFF_X3 + 8 * S;
+    error.assert_max_bit_size::<4>();
+
+    // Check term_2 = x_scaled * x_sq
+    let error = wit.term_2 * S - wit.x_scaled * wit.x_sq + 2*S;
+    error.assert_max_bit_size::<LOG_S + 2>();
+
+    // Check tanh_input = sqrt(2/pi) * (x + term_2)
+    let error = (inp.x + wit.term_2) * SQRT_2_PI - wit.tanh_input * S + 4*S;
+    error.assert_max_bit_size::<LOG_S + 3>();
+
+    // Check gelu output: 2 * y = x * (1 + tanh_output)
+    let error = 2 * inp.y * S - inp.x * (S + wit.tanh_output) + 4*S;
+    error.assert_max_bit_size::<LOG_S + 3>();
+}
+
+pub fn check_power_lookup(inp: Input, wit: PowerLookupWitness) {
+    // Check that x = e^(log_x)
+    check_inv_exp_lookup(
+        Input {
+            x: wit.log_x,
+            y: inp.x,
+            vec_x: [0; NUM_SOFTMAX],
+            vec_y: [0; NUM_SOFTMAX],
+            k: 0,
+        },
+        wit.inv_exp_witness_x,
+    );
+
+    // Check that y = e^(k * log_x)
+    check_inv_exp_lookup(
+        Input {
+            x: wit.k_log_x,
+            y: inp.y,
+            vec_x: [0; NUM_SOFTMAX],
+            vec_y: [0; NUM_SOFTMAX],
+            k: 0,
+        },
+        wit.inv_exp_witness_y,
+    );
+
+    // Check that k_log_x = k * log_x
+    let error = wit.k_log_x * S - inp.k * wit.log_x + 8 * S;
+    error.assert_max_bit_size::<LOG_S + 4>();
+}
+
+pub fn check_erf_lookup(inp: Input, _wit: ErfLookupWitness) {
+    assert(inp.y == CUSTOM_TABLE[inp.x as u32]);
+}
+
 pub fn check_softmax_lookup(inp: Input, wit: SoftMaxLookupWitness) {
     // Check that exp_wits[i].x == shift - vec_x[i]
     for i in 0..NUM_SOFTMAX {
@@ -143,5 +324,10 @@ pub fn check_cosine_lookup(inp: Input, _wit: CosineLookupWitness) {
     // One lookup call to a cosine table
     // Cannot decompose cosine unless using a half angle formula like cos(2x) = 2cos^2(x) - 1
     // but this only reduces the table size by a factor of 2
-    assert(inp.y == COSINE_TABLE[inp.x as u32]);
+    assert(inp.y == CUSTOM_TABLE[inp.x as u32]);
+}
+
+pub fn check_tan_lookup(inp: Input, _wit: TanLookupWitness) {
+    // One lookup call to a tangent table
+    assert(inp.y == CUSTOM_TABLE[inp.x as u32]);
 }
