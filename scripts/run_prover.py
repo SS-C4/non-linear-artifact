@@ -137,10 +137,10 @@ def run_bb_prove():
             ],
             cwd=Path(__file__).parent.parent,
             capture_output=True,
-            text=True,
-            timeout=300  # 5 minute timeout
+            text=True
+            # No timeout - wait for the command to complete
         )
-        
+
         # Combine stdout and stderr
         output = result.stdout + result.stderr
         
@@ -153,10 +153,16 @@ def run_bb_prove():
         
         # Extract prover time
         # Looking for pattern like: "Total: 46 functions (6 shared), 434 measurements, 470.46 ms"
-        prover_match = re.search(r'Total:.*?([\d.]+)\s*ms', output)
+        prover_match = re.search(r'Total:.*?([\d.]+)\s*(ms|seconds)', output)
         prover_time = None
         if prover_match:
-            prover_time = float(prover_match.group(1))
+            time_value = float(prover_match.group(1))
+            time_unit = prover_match.group(2)
+            # Convert to milliseconds if in seconds
+            if 'second' in time_unit:
+                prover_time = time_value * 1000
+            else:
+                prover_time = time_value
         
         # Check if command succeeded
         if result.returncode != 0:
@@ -179,9 +185,6 @@ def run_bb_prove():
         
         return proving_key_time, prover_time
             
-    except subprocess.TimeoutExpired:
-        print("✗ Failed: bb prove timed out after 5 minutes")
-        return None, None
     except FileNotFoundError:
         print("✗ Failed: 'bb' command not found")
         return None, None

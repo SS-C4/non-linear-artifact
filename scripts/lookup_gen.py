@@ -5,7 +5,7 @@ from mpmath import mp, mpf, exp, sqrt, pi
 mp.dps = 100  # high precision
 field_order = 21888242871839275222246405745257275088548364400416034343698204186575808495617
 
-def quantize_and_decompose(x_str, log_base, log_scale):
+def quantize_and_decompose(x_str, log_base, log_scale, is_softmax=False):
     x = mpf(x_str)
     scale = 2 ** log_scale
     base = 2 ** log_base
@@ -18,7 +18,7 @@ def quantize_and_decompose(x_str, log_base, log_scale):
         temp //= base
 
     # Ensure we have len(coeffs) == log_scale // log_base by padding with zeros
-    while len(coeffs) < log_scale // log_base:
+    while len(coeffs) < log_scale // log_base + (1 if is_softmax else 0):
         coeffs.append(0)
     return qx, coeffs, scale, base
 
@@ -248,7 +248,7 @@ if __name__ == "__main__":
                 },
                 "wit_struct": {
                     "exp_output": str(int(mp.nint(exp_output * scale))),
-                    "inv_exp_wit": {
+                    "inv_exp_witness": {
                         "x_decomp": [str(c) for c in coeffs],
                         "lookup_mults": [str(v) for v in data_vector],
                     },
@@ -403,19 +403,20 @@ if __name__ == "__main__":
 
     elif func == "power":
         power_wits = []
-        tables, scale = generate_tables(log_base, log_scale, is_softmax=False)
+        tables, scale = generate_tables(log_base, log_scale, is_softmax=True)
 
         for i in range(num_inputs):
             x_input = mpf(mp.rand())
+            k = mpf(k)
             y = exp(k * mp.log(x_input))
             x_quantized = int(mp.nint(mpf(x_input) * scale))
             y_quantized = int(mp.nint(mpf(y) * scale))
 
-            log_x = mp.log(x_input)
+            log_x = - mp.log(x_input)
             k_log_x = k * log_x
 
             # x = exp(log_x)
-            qx, coeffs, scale, base = quantize_and_decompose(log_x, log_base, log_scale)
+            qx, coeffs, scale, base = quantize_and_decompose(log_x, log_base, log_scale, True)
             lookup_outputs = [tables[i][coeffs[i]] for i in range(len(coeffs))]
             data_vector, mult_ops = build_binary_tree_multiplication(lookup_outputs)
 
@@ -425,7 +426,7 @@ if __name__ == "__main__":
             }
 
             # y = exp(k * log_x)
-            qx, coeffs, scale, base = quantize_and_decompose(k_log_x, log_base, log_scale)
+            qx, coeffs, scale, base = quantize_and_decompose(k_log_x, log_base, log_scale, True)
             lookup_outputs = [tables[i][coeffs[i]] for i in range(len(coeffs))]
             data_vector, mult_ops = build_binary_tree_multiplication(lookup_outputs)
 
@@ -434,7 +435,8 @@ if __name__ == "__main__":
                 "lookup_mults": [str(v) for v in data_vector],
             }
 
-            if i == 0 and j == 0:
+            if i == 0:
+                softmax_size = 1  # Not used for power
                 write_to_constants(function_map[func], num_inputs, softmax_size, tables, [], log_scale, log_base, mult_ops)
 
             power_wits.append({
@@ -446,10 +448,10 @@ if __name__ == "__main__":
                     "k": str(k_quantized),
                 },
                 "wit_struct": {
-                    "inv_exp_wit_x": inv_exp_wit_x,
-                    "inv_exp_wit_y": inv_exp_wit_y,
-                    "log_x": str(int(mp.nint(log_x * scale))),
-                    "k_log_x": str(int(mp.nint(k_log_x * scale))),
+                    "inv_exp_witness_x": inv_exp_wit_x,
+                    "inv_exp_witness_y": inv_exp_wit_y,
+                    "log_x": str(int(mp.nint(log_x * scale)) % field_order),
+                    "k_log_x": str(int(mp.nint(k_log_x * scale)) % field_order),
                 }
             })
 

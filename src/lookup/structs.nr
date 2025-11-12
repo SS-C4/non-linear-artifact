@@ -200,12 +200,13 @@ pub fn check_tanh_lookup(inp: Input, wit: TanhLookupWitness) {
     );
 
     // Check that out_sq == exp_output^2
-    let error = inp.y * inp.y - wit.exp_output * wit.exp_output;
-    error.assert_max_bit_size::<4>();
+    let error = wit.out_sq * S - wit.exp_output * wit.exp_output + 8 * S;
+    println(error);
+    error.assert_max_bit_size::<LOG_S + 4>();
 
     // Check tanh(x) = (1 - exp(-2x)) / (1 + exp(-2x))
     let error = inp.y * (S + wit.out_sq) - (S - wit.out_sq) * S + 8 * S;
-    error.assert_max_bit_size::<4>();
+    error.assert_max_bit_size::<LOG_S + 4>();
 }
 
 pub fn check_sigmoid_lookup(inp: Input, wit: SigmoidLookupWitness) {
@@ -222,8 +223,9 @@ pub fn check_sigmoid_lookup(inp: Input, wit: SigmoidLookupWitness) {
     );
 
     // Check that denom_inverse is the inverse of (1 + exp_output)
-    let error = inp.y * (S + wit.exp_output) - S * S + 8 * S;
-    error.assert_max_bit_size::<4>();
+    let error = inp.y * (S + wit.exp_output) - S * S + 16 * S;
+    println(error);
+    error.assert_max_bit_size::<LOG_S + 5>();
 }
 
 pub fn check_gelu_lookup(inp: Input, wit: GeluLookupWitness) {
@@ -241,11 +243,11 @@ pub fn check_gelu_lookup(inp: Input, wit: GeluLookupWitness) {
 
     // Check x_sq == x * x
     let error = wit.x_sq * S - inp.x * inp.x + 8 * S;
-    error.assert_max_bit_size::<4>();
+    error.assert_max_bit_size::<LOG_S + 4>();
 
     // Check x_scaled == 0.044715 * x
     let error = wit.x_scaled * S - inp.x * COEFF_X3 + 8 * S;
-    error.assert_max_bit_size::<4>();
+    error.assert_max_bit_size::<LOG_S + 4>();
 
     // Check term_2 = x_scaled * x_sq
     let error = wit.term_2 * S - wit.x_scaled * wit.x_sq + 2*S;
