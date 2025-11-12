@@ -55,9 +55,9 @@ fn run_pade_experiment(wits: [PadeWitness; PADE_NUM]) {
 }
 
 // // Main function for LOOKUP
-fn  main(lookup_wits: [LookupWitness<LOOKUP_FUNC_TYPE>; LOOKUP_NUM]) {
-    run_lookup_experiment(lookup_wits);
-}
+// fn  main(lookup_wits: [LookupWitness<LOOKUP_FUNC_TYPE>; LOOKUP_NUM]) {
+//     run_lookup_experiment(lookup_wits);
+// }
 
 // // Main function for GL_QUAD
 // fn main(gl_wits: [GLWitness<GL_FUNC_TYPE>; GL_NUM]) {
@@ -70,9 +70,9 @@ fn  main(lookup_wits: [LookupWitness<LOOKUP_FUNC_TYPE>; LOOKUP_NUM]) {
 // }
 
 // // Main function for POLY
-// fn main(poly_wits: [PolyWitness; POLY_NUM]) {
-//     run_poly_experiment(poly_wits);
-// }
+fn main(poly_wits: [PolyWitness; POLY_NUM]) {
+    run_poly_experiment(poly_wits);
+}
 
 // // Main function for PADE
 // fn main(pade_wits: [PadeWitness; PADE_NUM]) {

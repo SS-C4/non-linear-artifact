@@ -125,14 +125,24 @@ def run_nargo_execute():
 def run_bb_prove():
     """Run bb prove and extract proving key computation time and prover time."""
     print("\nRunning bb prove...")
+    print("(This may take several minutes for large circuits...)")
+    
+    # Define benchmark output paths
+    bench_path_txt = "./target/bench.txt"
+    bench_path_json = "./target/bench.json"
+    
     try:
         result = subprocess.run(
             [
-                "bb", "prove",
+                "bb", "prove", "-vd",
+                "-s", "ultra_honk",
                 "-b", "./target/non_linear_approx.json",
                 "-w", "./target/non_linear_approx.gz",
-                "--write_vk",
                 "-o", "./target",
+                "--write_vk",
+                "--oracle_hash", "keccak",
+                "--bench_out", bench_path_txt,
+                "--bench_out_hierarchical", bench_path_json,
                 "--print_bench"
             ],
             cwd=Path(__file__).parent.parent,
@@ -198,7 +208,7 @@ def run_bb_verify():
     try:
         # Run with BB_BENCH=1 to get benchmark output
         result = subprocess.run(
-            "BB_BENCH=1 bb verify -v -p ./target/proof -k ./target/vk",
+            "BB_BENCH=1 bb verify -v -s ultra_honk -p ./target/proof -k ./target/vk --oracle_hash keccak",
             cwd=Path(__file__).parent.parent,
             capture_output=True,
             text=True,
@@ -209,11 +219,18 @@ def run_bb_verify():
         # Output contains both bb verify output and benchmark stats
         output = result.stdout + result.stderr
         
-        # Extract time from BB_BENCH format: "Total: 2 functions, 2 measurements, 7.33 ms"
-        time_match = re.search(r'Total:.*?([\d.]+)\s*ms', output)
+        # Extract time from BB_BENCH format: "Total: 2 functions, 2 measurements, 9.39 ms"
+        # Match the pattern more flexibly - look for numbers followed by ms or seconds
+        time_match = re.search(r'Total:.*?([\d.]+)\s*(ms|seconds)', output)
         verifier_time = None
         if time_match:
-            verifier_time = float(time_match.group(1))
+            time_value = float(time_match.group(1))
+            time_unit = time_match.group(2)
+            # Convert to milliseconds if in seconds
+            if 'second' in time_unit:
+                verifier_time = time_value * 1000
+            else:
+                verifier_time = time_value
         
         # Check if command succeeded (look for success message)
         if "Proof verified successfully" not in output and "verified: 1" not in output:
@@ -242,26 +259,26 @@ def run_bb_verify():
         return None
 
 def get_proof_size():
-    """Get the proof size using du command."""
+    """Get the proof size using stat command."""
     print("\nGetting proof size...")
     try:
         result = subprocess.run(
-            ["du", "-sh", "./target/proof"],
+            '(stat -c%s "target/proof" 2>/dev/null || stat -f%z "target/proof") | awk \'{print $1 " Bytes (" $1/1024 " KiB)"}\' ',
             cwd=Path(__file__).parent.parent,
             capture_output=True,
             text=True,
+            shell=True,
             timeout=10
         )
         
-        # Extract size from output like "16K    ./target/proof"
+        # Extract size from output like "16256 Bytes (15.875 KiB)"
         output = result.stdout.strip()
-        size_match = re.search(r'^([\d.]+[KMG]?)\s+', output)
         proof_size = None
-        if size_match:
-            proof_size = size_match.group(1)
+        if output:
+            proof_size = output
         
         # Check if command succeeded
-        if result.returncode != 0:
+        if result.returncode != 0 or not output:
             print("✗ Failed to get proof size")
             return None
         

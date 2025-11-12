@@ -1,6 +1,6 @@
 pub mod constants;
 
-use constants::{LOG_SCALE, SCALE, COEFFS, DEGREE};
+use constants::{LOG_SCALE, SCALE, COEFFS, DEGREE, IS_POWER};
 
 pub struct PolyWitness {
     // Statement
@@ -9,6 +9,12 @@ pub struct PolyWitness {
 
     // Witness
     intermediates: [Field; DEGREE + 1], // x^1, x^2, ..., x^DEGREE
+
+    // For power function only
+    k: Field,
+    log_x: Field,
+    k_log_x: Field,
+    intermediates_2: [Field; DEGREE + 1],
 }
 
 /// Multiplies two quantized values and checks that
@@ -33,19 +39,55 @@ pub fn check_powers(x: Field, intermediates: [Field; DEGREE + 1]) {
 }
 
 pub fn check_poly_approx(wit: PolyWitness) {
-    // Check powers
-    check_powers(wit.x, wit.intermediates);
+    if !IS_POWER {
+        // Check powers
+        check_powers(wit.x, wit.intermediates);
 
-    // Reconstruct polynomial approximation
-    let mut approx = 0;
-    for i in 0..DEGREE + 1 {
-        let coeff = COEFFS[i];
-        let term = wit.intermediates[i] * coeff;
-        approx += term;
+        // Reconstruct polynomial approximation
+        let mut approx = 0;
+        for i in 0..DEGREE + 1 {
+            let coeff = COEFFS[i];
+            let term = wit.intermediates[i] * coeff;
+            approx += term;
+        }
+
+        // Check that approximation is close to y
+        let error = wit.y * SCALE - approx + 128 * SCALE;
+        error.assert_max_bit_size::<LOG_SCALE + 8>();
     }
+    else {
+        // Check powers for first exponent
+        check_powers(wit.log_x, wit.intermediates);
 
-    // Check that approximation is close to y
-    let error = wit.y * SCALE - approx + 128 * SCALE;
-    error.assert_max_bit_size::<LOG_SCALE + 8>();
+        // Reconstruct polynomial approximation
+        let mut log_approx = 0;
+        for i in 0..DEGREE + 1 {
+            let coeff = COEFFS[i];
+            let term = wit.intermediates[i] * coeff;
+            log_approx += term;
+        }
+
+        // Check that approximation is close to x
+        let error = wit.x * SCALE - log_approx + 128 * SCALE;
+        error.assert_max_bit_size::<LOG_SCALE + 8>();
+
+        // Check powers for second exponent
+        check_powers(wit.k_log_x, wit.intermediates_2);
+
+        // Reconstruct polynomial approximation for k*log(x)
+        let mut k_log_approx = 0;
+        for i in 0..DEGREE + 1 {
+            let coeff = COEFFS[i];
+            let term = wit.intermediates_2[i] * coeff;
+            k_log_approx += term;
+        }
+
+        // Check that approximation is close to k*log(x)
+        let error = wit.y * SCALE - k_log_approx + 128 * SCALE;
+        error.assert_max_bit_size::<LOG_SCALE + 8>();
+
+        // Check k_log_x is k times log_x
+        check_quantized_mult(wit.log_x, wit.k, wit.k_log_x);
+    }
 }
 
