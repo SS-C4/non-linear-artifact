@@ -65,14 +65,14 @@ fn run_pade_experiment(wits: [PadeWitness; PADE_NUM]) {
 // }
 
 // // Main function for PWL
-// fn main(pwl_wits: [PWLWitness; PWL_NUM]) {
-//     run_pwl_experiment(pwl_wits);
-// }
+fn main(pwl_wits: [PWLWitness; PWL_NUM]) {
+    run_pwl_experiment(pwl_wits);
+}
 
 // // Main function for POLY
-fn main(poly_wits: [PolyWitness; POLY_NUM]) {
-    run_poly_experiment(poly_wits);
-}
+// fn main(poly_wits: [PolyWitness; POLY_NUM]) {
+//     run_poly_experiment(poly_wits);
+// }
 
 // // Main function for PADE
 // fn main(pade_wits: [PadeWitness; PADE_NUM]) {
