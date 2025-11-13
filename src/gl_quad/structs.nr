@@ -291,8 +291,8 @@ impl GLFunction for TanhWitness {
         for i in 0..N_POINTS {
             rhs += GL_WEIGHTS[i] * self.denom_inverses[i];
         }
-        let error = lhs - rhs + 16*S;
-        error.assert_max_bit_size::<LOG_S + 5>();
+        let error = lhs - rhs + 4*S;
+        error.assert_max_bit_size::<LOG_S + 3>();
     }
 
     fn check_mult(self, inp: Input) {
@@ -323,8 +323,8 @@ impl GLFunction for TangentWitness {
         // Check if inverse * (mult_term + 4) = 2y
         for i in 0..N_POINTS {
             let term = self.mult_terms[i] + 4 * S;
-            let error = 2 * inp.y * S - term * self.denom_inverses[i] + 16*S;
-            error.assert_max_bit_size::<LOG_S + 5>();
+            let error = 2 * inp.y * S - term * self.denom_inverses[i] + 4*S;
+            error.assert_max_bit_size::<LOG_S + 3>();
         }
     }
 
@@ -335,16 +335,15 @@ impl GLFunction for TangentWitness {
         for i in 0..N_POINTS {
             rhs += GL_WEIGHTS[i] * self.denom_inverses[i];
         }
-        let error = lhs - rhs + 32*S;
-        error.assert_max_bit_size::<LOG_S + 6>();
+        let error = lhs - rhs + 4*S;
+        error.assert_max_bit_size::<LOG_S + 3>();
     }
 
     fn check_mult(self, _inp: Input) {
         // Check multiplicative terms = y^2 * GL_ROOT
-        // Error bounds increase for kepler use case
         for i in 0..N_POINTS {
-            let error = self.mult_terms[i] * S - GL_ROOTS_tan[i] * self.y_sq + 16*S;
-            error.assert_max_bit_size::<LOG_S + 5>();
+            let error = self.mult_terms[i] * S - GL_ROOTS_tan[i] * self.y_sq + 4*S;
+            error.assert_max_bit_size::<LOG_S + 3>();
         }
     }
 }
@@ -376,8 +375,8 @@ impl GLFunction for CosineWitness {
         });
 
         // Check sqrt_1_p_tan2 * self.y ~= 1
-        let error = self.sqrt_1_p_tan2 * inp.y - S_sq + 16*S;
-        error.assert_max_bit_size::<LOG_S + 5>();
+        let error = self.sqrt_1_p_tan2 * inp.y - S_sq + 4*S;
+        error.assert_max_bit_size::<LOG_S + 3>();
     }
 
     fn check_sum(self, inp: Input) {
@@ -402,8 +401,8 @@ impl GLFunction for CosineWitness {
         });
 
         // Check that sqrt_1_p_tan2 * sqrt_1_p_tan2 ~= 1 + wit.tan_x^2
-        let error = self.sqrt_1_p_tan2 * self.sqrt_1_p_tan2 - (S_sq + self.tan_x * self.tan_x) + 16*S;
-        error.assert_max_bit_size::<LOG_S + 5>();
+        let error = self.sqrt_1_p_tan2 * self.sqrt_1_p_tan2 - (S_sq + self.tan_x * self.tan_x) + 4*S;
+        error.assert_max_bit_size::<LOG_S + 3>();
     }
 }
 
@@ -444,8 +443,8 @@ impl GLFunction for PowerWitness {
         for i in 0..N_POINTS {
             rhs += GL_WEIGHTS[i] * (self.denom_inverses_1[i] - self.denom_inverses_2[i]);
         }
-        let error = lhs - rhs + 8*S;
-        error.assert_max_bit_size::<LOG_S + 4>();
+        let error = lhs - rhs + 4*S;
+        error.assert_max_bit_size::<LOG_S + 3>();
     }
 
     fn check_mult(self, _inp: Input) {
@@ -735,28 +734,28 @@ impl GLFunction for KeplerWitness {
         error.assert_max_bit_size::<LOG_S + 3>();
 
         // Check a^3 = P_orbit^2
-        let error = self.P_orbit * self.P_orbit - self.a * self.a_sq + 16*S;
-        error.assert_max_bit_size::<LOG_S + 5>();
+        let error = self.P_orbit * self.P_orbit - self.a * self.a_sq + 4*S;
+        error.assert_max_bit_size::<LOG_S + 3>();
 
         // Check b = a * sqrt(1 - e^2)
         let error = self.b * S - self.a * self.sqrt_1_m_e2 + 4*S;
         error.assert_max_bit_size::<LOG_S + 3>();
 
         // Check M = 2pi * dt / P_orbit
-        let error = self.M * self.P_orbit - TWO_PI * self.dt + 16*S;
-        error.assert_max_bit_size::<LOG_S + 5>();
+        let error = self.M * self.P_orbit - TWO_PI * self.dt + 4*S;
+        error.assert_max_bit_size::<LOG_S + 3>();
 
         // Check M = E - e * sin(E)
-        let error = self.M * S - self.E * S + self.e * self.sin_E + 16*S;
-        error.assert_max_bit_size::<LOG_S + 5>();
+        let error = self.M * S - self.E * S + self.e * self.sin_E + 4*S;
+        error.assert_max_bit_size::<LOG_S + 3>();
 
         // Check sin_E^2 + cos_E^2 = 1
-        let error = self.sin_E * self.sin_E + self.cos_E * self.cos_E - S_sq + 16*S;
-        error.assert_max_bit_size::<LOG_S + 5>();
+        let error = self.sin_E * self.sin_E + self.cos_E * self.cos_E - S_sq + 4*S;
+        error.assert_max_bit_size::<LOG_S + 3>();
 
         // Check sqrt_1_m_e2 = sqrt(1 - e^2)
-        let error = self.sqrt_1_m_e2 * self.sqrt_1_m_e2 + self.e * self.e - S_sq + 8*S;
-        error.assert_max_bit_size::<LOG_S + 4>();
+        let error = self.sqrt_1_m_e2 * self.sqrt_1_m_e2 + self.e * self.e - S_sq + 4*S;
+        error.assert_max_bit_size::<LOG_S + 3>();
 
         // Check x = a * (cos_E - e)
         let error = self.x * S - self.a * (self.cos_E - self.e) + 4*S;
@@ -820,12 +819,12 @@ impl GLFunction for BancorWitness {
         });
 
         // Check pow_input = (R + E) / R
-        let error = self.pow_input * self.R_reserve - (self.E_payment + self.R_reserve) * S + 8*S;
-        error.assert_max_bit_size::<LOG_S + 4>();
+        let error = self.pow_input * self.R_reserve - (self.E_payment + self.R_reserve) * S + 4*S;
+        error.assert_max_bit_size::<LOG_S + 3>();
 
         // Check T_tokens = S_supply * (pow_output - 1)
-        let error = self.T_tokens * S - self.S_supply * (self.pow_output - S) + 8*S;
-        error.assert_max_bit_size::<LOG_S + 4>();
+        let error = self.T_tokens * S - self.S_supply * (self.pow_output - S) + 4*S;
+        error.assert_max_bit_size::<LOG_S + 3>();
 
     }
 }
