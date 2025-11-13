@@ -2,7 +2,7 @@ import sys
 import toml
 import mpmath
 
-mpmath.mp.dps = 100
+mpmath.mp.dps = 100  # set decimal places for mpmath
 field_order = 21888242871839275222246405745257275088548364400416034343698204186575808495617
 
 function_map = {
@@ -15,7 +15,8 @@ function_map = {
     "power": "PowerWitness",
     "softmax": "SoftmaxWitness",
     "gelu": "GeluWitness",
-    "erf": "ErfWitness"
+    "erf": "ErfWitness",
+    "kepler": "KeplerWitness"
 }
 
 def quantize(value, scale):
@@ -69,8 +70,8 @@ if __name__ == "__main__":
         print("Warning: Extra arguments ignored.")
 
     roots, weights = gauss_legendre(n_points)
-    roots_tan = [(mpmath.mpf(roots[i]) + 1)**2 for i in range(n_points)]
-    scale = 2 ** log_scale
+    roots_tan = [mpmath.power(mpmath.mpf(roots[i]) + mpmath.mpf(1), mpmath.mpf(2)) for i in range(n_points)]
+    scale = mpmath.power(mpmath.mpf(2), mpmath.mpf(log_scale))
 
     # Quantize roots and weights
     quantized_weights = [quantize(w, scale) for w in weights]
@@ -86,8 +87,8 @@ if __name__ == "__main__":
         f.write(f"pub type FUNC_TYPE = super::structs::{function_map[function]};\n")
         f.write(f"pub global NUM_INPUTS: u32 = {num_inputs};\n")
         f.write(f"pub global LOG_S: u32 = {log_scale};\n")
-        f.write(f"pub global S: Field = {scale};\n")
-        f.write(f"pub global S_sq: Field = {scale * scale};\n")
+        f.write(f"pub global S: Field = {int(mpmath.mpf(scale))};\n")
+        f.write(f"pub global S_sq: Field = {int(mpmath.mpf(scale * scale))};\n")
         f.write(f"pub global N_POINTS: u32 = {n_points};\n")
         f.write(f"pub global N_SOFTMAX: u32 = {dim_softmax if dim_softmax is not None else 1};\n")
         f.write("pub global GL_ROOTS: [Field; N_POINTS] = [\n")
@@ -102,9 +103,11 @@ if __name__ == "__main__":
         for w in quantized_weights:
             f.write(f"    {int(mpmath.mpf(w))},\n")
         f.write("];\n")
-        f.write(f"pub global COEFF_X3: Field = {int(mpmath.mpf(0.044715) * scale)};\n")
-        f.write(f"pub global SQRT_2_PI: Field = {int(mpmath.sqrt(2 / mpmath.pi) * scale)};\n")
+        f.write(f"pub global COEFF_X3: Field = {int(mpmath.mpf('0.044715') * scale)};\n")
+        f.write(f"pub global SQRT_2_PI: Field = {int(mpmath.sqrt(mpmath.mpf(2) / mpmath.pi) * scale)};\n")
         f.write(f"pub global SQRT_PI: Field = {int(mpmath.sqrt(mpmath.pi) * scale)};\n")
+        f.write(f"pub global TWO_PI: Field = {int(mpmath.mpf(2) * mpmath.pi * scale)};\n")
+        f.write(f"pub global PI: Field = {int(mpmath.mpf(mpmath.pi) * scale)};\n")
 
     # Witness generation
     # y = f(x)
@@ -112,7 +115,7 @@ if __name__ == "__main__":
     gl_wits = []
     for i in range(int(num_inputs)):
         if function == "power":
-            x_input = mpmath.mpf(mpmath.rand()) + 1
+            x_input = mpmath.mpf(mpmath.rand()) + mpmath.mpf(1)
         else:
             x_input = mpmath.mpf(mpmath.rand())
 
@@ -121,9 +124,9 @@ if __name__ == "__main__":
         if function == "exp":
             y_input = mpmath.exp(x_input)
         elif function == "inv_exp":
-            y_input = 1 / mpmath.exp(x_input)
+            y_input = mpmath.mpf(1) / mpmath.exp(x_input)
         elif function == "sigmoid":
-            y_input = 1 / (1 + mpmath.exp(-x_input))
+            y_input = mpmath.mpf(1) / (mpmath.mpf(1) + mpmath.exp(-x_input))
         elif function == "tanh":
             y_input = mpmath.tanh(x_input)
         elif function == "tan":
@@ -131,9 +134,9 @@ if __name__ == "__main__":
         elif function == "cos":
             y_input = mpmath.cos(x_input)
         elif function == "gelu":
-            tanh_input = mpmath.sqrt(2 / mpmath.pi) * (x_input + 0.044715 * x_input**3)
+            tanh_input = mpmath.sqrt(mpmath.mpf(2) / mpmath.pi) * (x_input + mpmath.mpf('0.044715') * mpmath.power(x_input, mpmath.mpf(3)))
             tanh_output = mpmath.tanh(tanh_input)
-            y_input = 0.5 * x_input * (1 + tanh_output)
+            y_input = mpmath.mpf('0.5') * x_input * (mpmath.mpf(1) + tanh_output)
         elif function == "erf":
             y_input = mpmath.erf(x_input)
         elif function == "power":
@@ -148,6 +151,10 @@ if __name__ == "__main__":
             exp_values = [mpmath.exp(inp) for inp in softmax_inputs]
             sum_exp = sum(exp_values)
             softmax_outputs = [val / sum_exp for val in exp_values]
+        elif function == "kepler":
+            # Kepler's equation does not have direct x to y mapping here
+            x_input = mpmath.mpf(0)
+            y_input = mpmath.mpf(0)
         else:
             print(f"Error: Unknown function '{function}'.")
             sys.exit(1)
@@ -172,7 +179,7 @@ if __name__ == "__main__":
             gl_inverses = []
             for r in roots:
                 r = mpmath.mpf(r)
-                gl_inverse = (y_input - 1) / (y_input * r - r + y_input + 1)
+                gl_inverse = (y_input - mpmath.mpf(1)) / (y_input * r - r + y_input + mpmath.mpf(1))
                 gl_inverses.append(quantize(gl_inverse, scale))
                 
             gl_wits.append({
@@ -194,7 +201,7 @@ if __name__ == "__main__":
             for j in range(n_points):
                 w = mpmath.mpf(weights[j])
                 r = mpmath.mpf(roots[j])
-                sum_check += w / (r + (y_input + 1)/(y_input - 1))
+                sum_check += w / (r + (y_input + mpmath.mpf(1))/(y_input - mpmath.mpf(1)))
 
             print(f"Sum check error: {mpmath.nstr(sum_check - x_input, n=15)}")
 
@@ -209,7 +216,7 @@ if __name__ == "__main__":
             gl_inverses = []
             for r in roots:
                 r = mpmath.mpf(r)
-                gl_inverse = (1 - y_input) / ( - y_input * r + r + 1 + y_input)
+                gl_inverse = (mpmath.mpf(1) - y_input) / ( - y_input * r + r + mpmath.mpf(1) + y_input)
                 gl_inverses.append(quantize(gl_inverse, scale))
 
             gl_wits.append({
@@ -231,7 +238,7 @@ if __name__ == "__main__":
             for j in range(n_points):
                 w = mpmath.mpf(weights[j])
                 r = mpmath.mpf(roots[j])
-                sum_check += w / (r + (1 + y_input)/(1 - y_input))
+                sum_check += w / (r + (mpmath.mpf(1) + y_input)/(mpmath.mpf(1) - y_input))
 
             print(f"Sum check error: {mpmath.nstr(sum_check - x_input, n=15)}")
 
@@ -245,7 +252,7 @@ if __name__ == "__main__":
             gl_inverses = []
             for r in roots:
                 r = mpmath.mpf(r)
-                gl_inverse = (2 * y_input - 1) / (2 * y_input * r - r + 1)
+                gl_inverse = (mpmath.mpf(2) * y_input - mpmath.mpf(1)) / (mpmath.mpf(2) * y_input * r - r + mpmath.mpf(1))
                 gl_inverses.append(quantize(gl_inverse, scale))
 
             gl_wits.append({
@@ -272,7 +279,7 @@ if __name__ == "__main__":
             gl_inverses = []
             for r in roots:
                 r = mpmath.mpf(r)
-                gl_inverse = y_input / (2 * y_input * r + 2)
+                gl_inverse = y_input / (mpmath.mpf(2) * y_input * r + mpmath.mpf(2))
                 gl_inverses.append(quantize(gl_inverse, scale) % field_order)
 
             gl_wits.append({
@@ -290,7 +297,7 @@ if __name__ == "__main__":
             })
 
         elif function == "tan":
-            y_sq = y_input ** 2
+            y_sq = mpmath.power(y_input, mpmath.mpf(2))
 
             gl_inverses = []
             mult_terms = []
@@ -298,7 +305,7 @@ if __name__ == "__main__":
                 r = mpmath.mpf(r)
                 mult_term = y_sq * r
                 mult_terms.append(quantize(mult_term, scale))
-                gl_inverse = (2 * y_input) / (mult_term + 4)
+                gl_inverse = (mpmath.mpf(2) * y_input) / (mult_term + mpmath.mpf(4))
                 gl_inverses.append(quantize(gl_inverse, scale))
 
             gl_wits.append({
@@ -320,16 +327,16 @@ if __name__ == "__main__":
         elif function == "cos":
             tan_x = mpmath.tan(x_input)
             # tan part
-            tan_x_sq = tan_x ** 2
+            tan_x_sq = mpmath.power(tan_x, mpmath.mpf(2))
 
             gl_inverses = []
             mult_terms = []
             for r in roots_tan:
                 r = mpmath.mpf(r)
                 mult_term = tan_x_sq * r
-                mult_terms.append(quantize(mult_term, scale))
-                gl_inverse = (2 * tan_x) / (mult_term + 4)
-                gl_inverses.append(quantize(gl_inverse, scale))
+                mult_terms.append(quantize(mult_term, scale) % field_order)
+                gl_inverse = (mpmath.mpf(2) * tan_x) / (mult_term + mpmath.mpf(4))
+                gl_inverses.append(quantize(gl_inverse, scale) % field_order)
 
             tan_wit = {
                 "y_sq": str(quantize(tan_x_sq, scale)),
@@ -339,24 +346,24 @@ if __name__ == "__main__":
 
             gl_wits.append({
                 "inp_struct": {
-                    "x": str(x_quantized),
-                    "y": str(y_quantized),
-                    "vec_x": [str(x_quantized)],
-                    "vec_y": [str(y_quantized)],
-                    "k": str(k_quantized) if k_quantized is not None else "0"
+                    "x": str(x_quantized % field_order),
+                    "y": str(y_quantized % field_order),
+                    "vec_x": [str(x_quantized % field_order)],
+                    "vec_y": [str(y_quantized % field_order)],
+                    "k": str(k_quantized % field_order) if k_quantized is not None else "0"
                 },
                 "wit_struct": {
-                    "tan_x": str(quantize(tan_x, scale)),
+                    "tan_x": str(quantize(tan_x, scale) % field_order),
                     "tan_witness": tan_wit,
-                    "sqrt_1_p_tan2": str(quantize(mpmath.sqrt(1 + tan_x**2), scale))
+                    "sqrt_1_p_tan2": str(quantize(mpmath.sqrt(mpmath.mpf(1) + mpmath.power(tan_x, mpmath.mpf(2))), scale))
                 }
             })
 
         elif function == "gelu":
-            x_sq = x_input ** 2
-            x_scaled = 0.044715 * x_input
+            x_sq = mpmath.power(x_input, mpmath.mpf(2))
+            x_scaled = mpmath.mpf('0.044715') * x_input
             term_2 = x_scaled * x_sq
-            tanh_input = mpmath.sqrt(2 / mpmath.pi) * (x_input + 0.044715 * x_input**3)
+            tanh_input = mpmath.sqrt(mpmath.mpf(2) / mpmath.pi) * (x_input + mpmath.mpf('0.044715') * mpmath.power(x_input, mpmath.mpf(3)))
             tanh_output = mpmath.tanh(tanh_input)
 
             mult_terms = []
@@ -369,7 +376,7 @@ if __name__ == "__main__":
             
             for r in roots:
                 r = mpmath.mpf(r)
-                gl_inverse = tanh_output / (2 * tanh_output * r + 2)
+                gl_inverse = tanh_output / (mpmath.mpf(2) * tanh_output * r + mpmath.mpf(2))
                 gl_inverses.append(quantize(gl_inverse, scale))
 
             tanh_wit = {
@@ -409,8 +416,8 @@ if __name__ == "__main__":
             gl_inverses_2 = []
             for r in roots:
                 r = mpmath.mpf(r)
-                gl_inverse_1 = (1 - y_input) / (r - y_input * r + y_input + 1)
-                gl_inverse_2 = k_input * (1 - x_input) / (r - x_input * r + x_input + 1)
+                gl_inverse_1 = (mpmath.mpf(1) - y_input) / (r - y_input * r + y_input + mpmath.mpf(1))
+                gl_inverse_2 = k_input * (mpmath.mpf(1) - x_input) / (r - x_input * r + x_input + mpmath.mpf(1))
                 gl_inverses_1.append(quantize(gl_inverse_1, scale) % field_order)
                 gl_inverses_2.append(quantize(gl_inverse_2, scale) % field_order)
 
@@ -435,12 +442,12 @@ if __name__ == "__main__":
             exp_outputs = []
             for r in roots_tan:
                 r = mpmath.mpf(r)
-                exp_input = x_input**2 / 4 * r
+                exp_input = mpmath.power(x_input, mpmath.mpf(2)) / mpmath.mpf(4) * r
                 exp_output = mpmath.exp(-exp_input)
                 exp_inputs.append(exp_input)
                 exp_outputs.append(exp_output)
 
-            x_sq_by_4 = x_input ** 2 / 4
+            x_sq_by_4 = mpmath.power(x_input, mpmath.mpf(2)) / mpmath.mpf(4)
             erf_sum = mpmath.sqrt(mpmath.pi) * y_input / x_input
 
             # Fill in exp_witnesses
@@ -453,7 +460,7 @@ if __name__ == "__main__":
                     r = mpmath.mpf(r)
                     mult_term = exp_outputs[i] * r
                     mult_terms.append(quantize(mult_term, scale) % field_order)
-                    gl_inverse = (1 - exp_outputs[i]) / ( - exp_outputs[i] * r + r + 1 + exp_outputs[i])
+                    gl_inverse = (mpmath.mpf(1) - exp_outputs[i]) / ( - exp_outputs[i] * r + r + mpmath.mpf(1) + exp_outputs[i])
                     gl_inverses.append(quantize(gl_inverse, scale))
 
                 inv_exp_wits.append({
@@ -482,19 +489,19 @@ if __name__ == "__main__":
             exp_witnesses = []
             for i in range(int(dim_softmax)):
                 # Create exp_witness for each dimension
-                ratio = (exp_values[i] + 1) / (exp_values[i] - 1)
+                ratio = (exp_values[i] + mpmath.mpf(1)) / (exp_values[i] - mpmath.mpf(1))
 
                 gl_inverses = []
                 for r in roots:
                     r = mpmath.mpf(r)
-                    gl_inverse = 1 / (r + ratio)
+                    gl_inverse = mpmath.mpf(1) / (r + ratio)
                     gl_inverses.append(quantize(gl_inverse, scale))
                 exp_witnesses.append({
                     "ratio_term": str(quantize(ratio, scale)),
                     "denom_inverses": [str(v) for v in gl_inverses]
                 })
 
-            denom_inverse = quantize(1 / sum_exp, scale)
+            denom_inverse = quantize(mpmath.mpf(1) / sum_exp, scale)
             
             gl_wits.append({
                 "inp_struct": {
@@ -508,6 +515,89 @@ if __name__ == "__main__":
                     "exp_witnesses": exp_witnesses,
                     "exp_outputs": [str(quantize(val, scale)) for val in exp_values],
                     "denom_inverse": str(denom_inverse)
+                }
+            })
+
+        elif function == "kepler":
+            # Sample P randomly from 1 to 2
+            # Sample e randomly from 0.5 to 0.9
+            # Sample dt randomly from 0 to P
+            P = mpmath.mpf(mpmath.rand()) + mpmath.mpf(1)
+            e = mpmath.mpf(mpmath.rand()) * mpmath.mpf('0.4') + mpmath.mpf('0.5')
+            dt = mpmath.mpf(mpmath.rand()) * P
+
+            a = mpmath.power(P, mpmath.mpf(2) / mpmath.mpf(3))
+            a_sq = mpmath.power(a, mpmath.mpf(2))
+            e_sq = mpmath.power(e, mpmath.mpf(2))
+            sqrt_1_m_e2 = mpmath.sqrt(mpmath.mpf(1) - e_sq)
+            b = a * sqrt_1_m_e2
+            M = mpmath.mpf(2) * mpmath.pi * dt / P
+            E = mpmath.findroot(lambda E: E - e * mpmath.sin(E) - M, M)
+
+            sin_E = mpmath.sin(E)
+            cos_E = mpmath.cos(E)
+            x = a * (cos_E - e)
+            y = b * sin_E
+
+            selector = 0 if E < mpmath.pi / 2 else 1 if E < 3 * mpmath.pi / 2 else 2
+            cos_E_shifted = cos_E if selector == 0 else -cos_E if selector == 1 else cos_E
+            E_shifted = E - mpmath.mpf(selector) * mpmath.pi
+
+            print(f"E: {mpmath.nstr(E, n=15)}, E_shifted: {mpmath.nstr(E_shifted, n=15)}, selector: {selector}")
+
+            # cos witness
+            tan_x = mpmath.tan(E_shifted)
+            # tan part
+            tan_x_sq = mpmath.power(tan_x, mpmath.mpf(2))
+
+            gl_inverses = []
+            mult_terms = []
+            for r in roots_tan:
+                r = mpmath.mpf(r)
+                mult_term = tan_x_sq * r
+                mult_terms.append(quantize(mult_term, scale))
+                gl_inverse = (mpmath.mpf(2) * tan_x) / (mult_term + mpmath.mpf(4))
+                gl_inverses.append(quantize(gl_inverse, scale) % field_order)
+
+            sqrt_1_p_tan2 = mpmath.sqrt(mpmath.mpf(1) + mpmath.power(tan_x, mpmath.mpf(2)))
+
+            tan_wit = {
+                "y_sq": str(quantize(tan_x_sq, scale)),
+                "denom_inverses": [str(v) for v in gl_inverses],
+                "mult_terms": [str(v) for v in mult_terms]
+            }
+
+            cos_witness = {
+                "tan_x": str(quantize(tan_x, scale) % field_order),
+                "tan_witness": tan_wit,
+                "sqrt_1_p_tan2": str(quantize(sqrt_1_p_tan2, scale) % field_order)
+            }
+
+            gl_wits.append({
+                "inp_struct": {
+                    "x": "0",
+                    "y": "0",
+                    "vec_x": ["0"],
+                    "vec_y": ["0"],
+                    "k": "0"
+                },
+                "wit_struct": {
+                    "P_orbit": str(quantize(P, scale)),
+                    "e": str(quantize(e, scale)),
+                    "dt": str(quantize(dt, scale)),
+                    "a": str(quantize(a, scale)),
+                    "a_sq": str(quantize(a_sq, scale)),
+                    "b": str(quantize(b, scale)),
+                    "sqrt_1_m_e2": str(quantize(sqrt_1_m_e2, scale)),
+                    "M": str(quantize(M, scale)),
+                    "E": str(quantize(E, scale)),
+                    "sin_E": str(quantize(sin_E, scale) % field_order),
+                    "cos_E": str(quantize(cos_E, scale) % field_order),
+                    "x": str(quantize(x, scale) % field_order),
+                    "y": str(quantize(y, scale) % field_order),
+                    "cos_witness": cos_witness,
+                    "selector": str(selector),
+                    "cos_E_shifted": str(quantize(cos_E_shifted, scale) % field_order)
                 }
             })
 
