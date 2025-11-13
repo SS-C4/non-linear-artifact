@@ -42,7 +42,8 @@ EXPERIMENTS = {
         "pwl": {
             16: ["inv_exp", NUM_INPUTS, 0.0, 1.0, 5, 16],
             32: ["inv_exp", NUM_INPUTS, 0.0, 1.0, 13, 32],
-            # 64 and 120 not found in optimal params
+            64: ["inv_exp", NUM_INPUTS, 0.0, 1.0, 13, 64],
+            120: ["inv_exp", NUM_INPUTS, 0.0, 1.0, 13, 120],
         },
         "gl_quad": {
             16: ["inv_exp", NUM_INPUTS, 4, 16],
@@ -73,7 +74,8 @@ EXPERIMENTS = {
         "pwl": {
             16: ["sigmoid", NUM_INPUTS, 0.0, 1.0, 3, 16],
             32: ["sigmoid", NUM_INPUTS, 0.0, 1.0, 11, 32],
-            # 64 and 120 not found in optimal params
+            64: ["sigmoid", NUM_INPUTS, 0.0, 1.0, 13, 64],
+            120: ["sigmoid", NUM_INPUTS, 0.0, 1.0, 13, 120],
         },
         "gl_quad": {
             16: ["sigmoid", NUM_INPUTS, 4, 16],
@@ -104,7 +106,8 @@ EXPERIMENTS = {
         "pwl": {
             16: ["gelu", NUM_INPUTS, 0.0, 1.0, 5, 16],
             32: ["gelu", NUM_INPUTS, 0.0, 1.0, 13, 32],
-            # 64 and 120 not found in optimal params
+            64: ["gelu", NUM_INPUTS, 0.0, 1.0, 13, 64],
+            120: ["gelu", NUM_INPUTS, 0.0, 1.0, 13, 120],
         },
         "gl_quad": {
             16: ["gelu", NUM_INPUTS, 5, 16],
@@ -128,14 +131,15 @@ EXPERIMENTS = {
         },
         "pade": {
             16: ["erf", NUM_INPUTS, 5, 16],  # Using 5 from first file (6 from second file also works)
-            32: ["erf", NUM_INPUTS, 9, 32],  # Using 9 from second file (10 from first also works)
+            32: ["erf", NUM_INPUTS, 10, 32],  # Using 9 from second file (10 from first also works)
             64: ["erf", NUM_INPUTS, 17, 64],
             120: ["erf", NUM_INPUTS, 26, 120],
         },
         "pwl": {
             16: ["erf", NUM_INPUTS, 0.0, 1.0, 5, 16],
             32: ["erf", NUM_INPUTS, 0.0, 1.0, 13, 32],
-            # 64 and 120 not found in optimal params
+            64: ["erf", NUM_INPUTS, 0.0, 1.0, 13, 64],
+            120: ["erf", NUM_INPUTS, 0.0, 1.0, 13, 120],
         },
         "gl_quad": {
             16: ["erf", NUM_INPUTS, 3, 16],
@@ -152,27 +156,28 @@ EXPERIMENTS = {
     },
     "tanh": {
         "poly": {
-            16: ["tanh", NUM_INPUTS, 16, 16],  # Using 12 from second file (16 from third file)
-            32: ["tanh", NUM_INPUTS, 41, 32],  # Using 37 from second file (41 from third file)
-            64: ["tanh", NUM_INPUTS, 85, 64],  # Only found in second file
-            # 120 not found in optimal params
+            16: ["tanh", NUM_INPUTS, 16, 16],  
+            32: ["tanh", NUM_INPUTS, 41, 32],  
+            64: ["tanh", NUM_INPUTS, 85, 64],  
+            120: ["tanh", NUM_INPUTS, 150, 120], 
         },
         "pade": {
             16: ["tanh", NUM_INPUTS, 4, 16],
-            32: ["tanh", NUM_INPUTS, 7, 32],  # Using 7 from third file (9 from second file also works)
+            32: ["tanh", NUM_INPUTS, 8, 32], 
             64: ["tanh", NUM_INPUTS, 10, 64],
             120: ["tanh", NUM_INPUTS, 16, 120],
         },
         "pwl": {
             16: ["tanh", NUM_INPUTS, 0.0, 1.0, 5, 16],
             32: ["tanh", NUM_INPUTS, 0.0, 1.0, 13, 32],
-            # 64 and 120 not found in optimal params
+            64: ["tanh", NUM_INPUTS, 0.0, 1.0, 13, 64],
+            120: ["tanh", NUM_INPUTS, 0.0, 1.0, 13, 120],
         },
         "gl_quad": {
             16: ["tanh", NUM_INPUTS, 7, 16],
             32: ["tanh", NUM_INPUTS, 14, 32],
             64: ["tanh", NUM_INPUTS, 28, 64],
-            # 120 not found in optimal params
+            120: ["tanh", NUM_INPUTS, 43, 120],
         },
         "lookup": {
             16: ["tanh", NUM_INPUTS, 8, 16],
@@ -185,7 +190,8 @@ EXPERIMENTS = {
         "poly": {
             16: ["tan", NUM_INPUTS, 16, 16],
             32: ["tan", NUM_INPUTS, 38, 32],
-            # 64 and 120 not found in optimal params
+            64: ["tan", NUM_INPUTS, 60, 64],
+            120: ["tan", NUM_INPUTS, 80, 120],
         },
         "pade": {
             16: ["tan", NUM_INPUTS, 4, 16],
@@ -196,7 +202,8 @@ EXPERIMENTS = {
         "pwl": {
             16: ["tan", NUM_INPUTS, 0.0, 0.78, 5, 16],
             32: ["tan", NUM_INPUTS, 0.0, 0.78, 14, 32],
-            # 64 and 120 not found in optimal params
+            64: ["tan", NUM_INPUTS, 0.0, 0.78, 14, 64],
+            120: ["tan", NUM_INPUTS, 0.0, 0.78, 14, 120],
         },
         "gl_quad": {
             16: ["tan", NUM_INPUTS, 5, 16],
@@ -205,7 +212,7 @@ EXPERIMENTS = {
             120: ["tan", NUM_INPUTS, 34, 120],
         },
         "lookup": {
-            16: ["tan", NUM_INPUTS, 16, 16],  # log_base = log_scale for lookup tables
+            16: ["tan", NUM_INPUTS, 16, 16],  
             32: ["tan", NUM_INPUTS, 16, 32],
             64: ["tan", NUM_INPUTS, 16, 64],
             120: ["tan", NUM_INPUTS, 16, 120],
@@ -227,7 +234,8 @@ EXPERIMENTS = {
         "pwl": {
             16: ["cos", NUM_INPUTS, 0.0, 1.57, 6, 16],
             32: ["cos", NUM_INPUTS, 0.0, 1.57, 14, 32],
-            # 64 and 120 not found in optimal params
+            64: ["cos", NUM_INPUTS, 0.0, 1.57, 14, 64],
+            120: ["cos", NUM_INPUTS, 0.0, 1.57, 14, 120],
         },
         "gl_quad": {
             16: ["cos", NUM_INPUTS, 5, 16],
@@ -256,8 +264,10 @@ EXPERIMENTS = {
             120: ["power", NUM_INPUTS, 13, 120, 0.876],
         },
         "pwl": {
-            16: ["power", NUM_INPUTS, -2.0, 2.0, 7, 16, 0.876],
-            # 32, 64, 120 not found in optimal params
+            16: ["power", NUM_INPUTS, 0.0, 1.0, 7, 16, 0.876],
+            32: ["power", NUM_INPUTS, 0.0, 1.0, 14, 32, 0.876],
+            64: ["power", NUM_INPUTS, 0.0, 1.0, 14, 64, 0.876],
+            120: ["power", NUM_INPUTS, 0.0, 1.0, 14, 120, 0.876],
         },
         "gl_quad": {
             16: ["power", NUM_INPUTS, 3, 16, 0.876],

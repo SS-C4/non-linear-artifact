@@ -181,33 +181,48 @@ if __name__ == "__main__":
     elif func_name == "power":
         scale = mpmath.power(mpmath.mpf(2), mpmath.mpf(log_scale))
         for i in range(num_inputs):
-            x_input = mpmath.mpf(mpmath.rand())
+            k = mpmath.mpf(k)
+            x_input = mpmath.mpf(mpmath.rand()) + mpmath.mpf(1)
+            y = mpmath.exp(k * mpmath.log(x_input))
+            log_x = mpmath.log(x_input)
+            k_log_x = k * log_x
+
             x_quantized = quantize(x_input, scale)
-
-            y = func(x_input)
             y_quantized = quantize(y, scale)
+            k_quantized = quantize(k, scale)
+            log_x_quantized = quantize(log_x, scale)
+            k_log_x_quantized = quantize(k_log_x, scale)
 
-            k_quantized = None
-
+            # For x = e^(log_x)
             intermediates = []
             denom_value = mpmath.mpf(0)
             for j in range(degree + 1):
-                x_power = mpmath.power(x_input, mpmath.mpf(j))
+                x_power = mpmath.power(log_x, mpmath.mpf(j))
                 denom_value += q[j] * x_power
 
                 x_power_quantized = quantize(x_power, scale)
                 intermediates.append(x_power_quantized % field_order)
+
+            # For y = e^(k * log_x)
+            intermediates_2 = []
+            denom_value_2 = mpmath.mpf(0)
+            for j in range(degree + 1):
+                x_power_2 = mpmath.power(k_log_x, mpmath.mpf(j))
+                denom_value_2 += q[j] * x_power_2
+
+                x_power_quantized_2 = quantize(x_power_2, scale)
+                intermediates_2.append(x_power_quantized_2 % field_order)
 
             pade_wits.append({
                 "x": str(x_quantized % field_order),
                 "y": str(y_quantized % field_order),
                 "intermediates": [str(val) for val in intermediates],
                 "denom_rescaled": str(quantize(denom_value, scale) % field_order),
-                "k": "0",
-                "log_x": "0",
-                "k_log_x": "0",
-                "intermediates_2": ["0" for _ in range(degree + 1)],
-                "denom_rescaled_2": "0",
+                "k": str(k_quantized % field_order),
+                "log_x": str(log_x_quantized % field_order),
+                "k_log_x": str(k_log_x_quantized % field_order),
+                "intermediates_2": [str(val) for val in intermediates_2],
+                "denom_rescaled_2": str(quantize(denom_value_2, scale) % field_order),
                 "kepler_witness": {
                     "P_orbit": "0",
                     "dt": "0",
@@ -332,47 +347,33 @@ if __name__ == "__main__":
     else:
         scale = mpmath.power(mpmath.mpf(2), mpmath.mpf(log_scale))
         for i in range(num_inputs):
-            x_input = mpmath.mpf(mpmath.rand()) + mpmath.mpf(1)
-            y = mpmath.exp(k * mpmath.log(x_input))
-            log_x = mpmath.log(x_input)
-            k_log_x = k * log_x
-
+            x_input = mpmath.mpf(mpmath.rand())
             x_quantized = quantize(x_input, scale)
-            y_quantized = quantize(y, scale)
-            k_quantized = quantize(k, scale)
-            log_x_quantized = quantize(log_x, scale)
-            k_log_x_quantized = quantize(k_log_x, scale)
 
-            # For x = e^(log_x)
+            y = func(x_input)
+            y_quantized = quantize(y, scale)
+
+            k_quantized = None
+
             intermediates = []
             denom_value = mpmath.mpf(0)
             for j in range(degree + 1):
-                x_power = mpmath.power(log_x, mpmath.mpf(j))
+                x_power = mpmath.power(x_input, mpmath.mpf(j))
                 denom_value += q[j] * x_power
 
                 x_power_quantized = quantize(x_power, scale)
                 intermediates.append(x_power_quantized % field_order)
-
-            # For y = e^(k * log_x)
-            intermediates_2 = []
-            denom_value_2 = mpmath.mpf(0)
-            for j in range(degree + 1):
-                x_power_2 = mpmath.power(k_log_x, mpmath.mpf(j))
-                denom_value_2 += q[j] * x_power_2
-
-                x_power_quantized_2 = quantize(x_power_2, scale)
-                intermediates_2.append(x_power_quantized_2 % field_order)
 
             pade_wits.append({
                 "x": str(x_quantized % field_order),
                 "y": str(y_quantized % field_order),
                 "intermediates": [str(val) for val in intermediates],
                 "denom_rescaled": str(quantize(denom_value, scale) % field_order),
-                "k": str(k_quantized % field_order),
-                "log_x": str(log_x_quantized % field_order),
-                "k_log_x": str(k_log_x_quantized % field_order),
-                "intermediates_2": [str(val) for val in intermediates_2],
-                "denom_rescaled_2": str(quantize(denom_value_2, scale) % field_order),
+                "k": "0",
+                "log_x": "0",
+                "k_log_x": "0",
+                "intermediates_2": ["0" for _ in range(degree + 1)],
+                "denom_rescaled_2": "0",
                 "kepler_witness": {
                     "P_orbit": "0",
                     "dt": "0",
@@ -401,7 +402,6 @@ if __name__ == "__main__":
                     "pow_intermediates": ["0" for _ in range(degree + 1)]
                 }
             })
-
         with open("Prover.toml", "r+") as f:
             toml_data = toml.load(f)
             toml_data["pade_wits"] = pade_wits

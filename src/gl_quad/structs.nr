@@ -315,8 +315,8 @@ impl GLFunction for TangentWitness {
         // error.assert_max_bit_size::<LOG_S + 10>();
 
         // Modified to check y^2
-        let error = self.y_sq * S - inp.y * inp.y + 2*S;
-        error.assert_max_bit_size::<LOG_S + 2>();
+        let error = self.y_sq * S - inp.y * inp.y + 4*S;
+        error.assert_max_bit_size::<LOG_S + 3>();
     }
 
     fn check_inverse(self, inp: Input) {

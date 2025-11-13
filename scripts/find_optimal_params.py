@@ -8,6 +8,9 @@ Usage:
   python3 scripts/find_optimal_params.py                    # Run all functions from the start
   python3 scripts/find_optimal_params.py --start-from gelu  # Resume from 'gelu' function
   python3 scripts/find_optimal_params.py --load-baseline experiments/optimal_params_20251112_010020.txt
+  python3 scripts/find_optimal_params.py --function sigmoid                 # Run only sigmoid
+  python3 scripts/find_optimal_params.py --function sigmoid --experiment poly  # Run sigmoid poly only
+  python3 scripts/find_optimal_params.py --list             # List available functions and experiments
 """
 
 import subprocess
@@ -29,14 +32,14 @@ EXPERIMENT_CONFIGS = {
     "poly": {
         "param_name": "degree",
         "start": 1,
-        "max": 60,
+        "max": 100,
         "step": 5,
         "param_index": 2,  # position in command args
     },
     "pade": {
         "param_name": "degree",
         "start": 1,
-        "max": 100,
+        "max": 50,
         "step": 3,
         "param_index": 2,
     },
@@ -239,6 +242,23 @@ def load_baseline_from_file(filepath):
     
     return baseline_params
 
+def list_available():
+    """List all available functions and experiments."""
+    print("\nAvailable Functions:")
+    for func_name in FUNCTIONS:
+        print(f"  - {func_name}")
+    
+    print("\nAvailable Experiment Types:")
+    for exp_type in EXPERIMENT_CONFIGS.keys():
+        print(f"  - {exp_type}")
+    
+    print("\nExample Usage:")
+    print("  python3 scripts/find_optimal_params.py                                # Run all")
+    print("  python3 scripts/find_optimal_params.py --function sigmoid             # Run only sigmoid")
+    print("  python3 scripts/find_optimal_params.py --function sigmoid --experiment poly  # Run sigmoid poly only")
+    print("  python3 scripts/find_optimal_params.py --start-from gelu              # Resume from gelu")
+    print()
+
 def main():
     """Main function to find optimal parameters for all experiments."""
     # Parse command-line arguments
@@ -247,22 +267,56 @@ def main():
                         help=f"Start from a specific function. Options: {', '.join(FUNCTIONS)}")
     parser.add_argument("--load-baseline", type=str, default=None,
                         help="Load baseline parameters from a previous results file")
+    parser.add_argument("--function", type=str, default=None,
+                        help="Run optimization for a specific function only")
+    parser.add_argument("--experiment", type=str, default=None,
+                        help="Run optimization for a specific experiment type only")
+    parser.add_argument("--list", action="store_true",
+                        help="List available functions and experiments")
     args = parser.parse_args()
     
-    # Validate start-from function
+    # Handle --list
+    if args.list:
+        list_available()
+        return
+    
+    # Validate arguments
     start_function = args.start_from
     if start_function and start_function not in FUNCTIONS:
         print(f"Error: Invalid function '{start_function}'")
         print(f"Available functions: {', '.join(FUNCTIONS)}")
         sys.exit(1)
     
+    if args.function and args.function not in FUNCTIONS:
+        print(f"Error: Unknown function '{args.function}'")
+        print(f"Available functions: {', '.join(FUNCTIONS)}")
+        sys.exit(1)
+    
+    if args.experiment and args.experiment not in EXPERIMENT_CONFIGS:
+        print(f"Error: Unknown experiment type '{args.experiment}'")
+        print(f"Available experiments: {', '.join(EXPERIMENT_CONFIGS.keys())}")
+        sys.exit(1)
+    
+    # --function overrides --start-from
+    if args.function and args.start_from:
+        print("Warning: --function overrides --start-from, ignoring --start-from")
+        start_function = None
+    
+    # Build run description
+    run_description = "All Functions"
+    if args.function and args.experiment:
+        run_description = f"Function: {args.function.upper()}, Experiment: {args.experiment}"
+    elif args.function:
+        run_description = f"Function: {args.function.upper()}"
+    elif start_function:
+        run_description = f"Starting from: {start_function.upper()}"
+    
     print(f"\n{'#'*80}")
     print(f"# Finding Optimal Parameters")
+    print(f"# Running: {run_description}")
     print(f"# Started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"# NUM_INPUTS: {NUM_INPUTS}")
     print(f"# LOG_SCALES: {LOG_SCALES}")
-    if start_function:
-        print(f"# Starting from function: {start_function}")
     if args.load_baseline:
         print(f"# Loading baseline from: {args.load_baseline}")
     print(f"{'#'*80}\n")
@@ -293,14 +347,27 @@ def main():
             print("Continuing without baseline...\n")
     
     # Determine which functions to run
-    if start_function:
+    if args.function:
+        functions_to_run = [args.function]
+        print(f"Running single function: {args.function}")
+    elif start_function:
         start_idx = FUNCTIONS.index(start_function)
         functions_to_run = FUNCTIONS[start_idx:]
         print(f"Starting from function: {start_function} (index {start_idx})")
-        print(f"Functions to run: {', '.join(functions_to_run)}\n")
+        print(f"Functions to run: {', '.join(functions_to_run)}")
     else:
         functions_to_run = FUNCTIONS
-        start_idx = 0
+    
+    # Determine which experiments to run
+    if args.experiment:
+        experiments_to_run = [args.experiment]
+        print(f"Running single experiment type: {args.experiment}")
+    else:
+        experiments_to_run = list(EXPERIMENT_CONFIGS.keys())
+    
+    print(f"Functions: {', '.join(functions_to_run)}")
+    print(f"Experiments: {', '.join(experiments_to_run)}")
+    print()
     
     # Test each function, experiment type, and log scale
     for func_idx, func_name in enumerate(functions_to_run):
@@ -313,7 +380,7 @@ def main():
         is_first_function = (func_name == "inv_exp")
         has_baseline = len(baseline_params) > 0
         
-        for experiment_type in EXPERIMENT_CONFIGS.keys():
+        for experiment_type in experiments_to_run:
             print(f"\n## Experiment: {experiment_type}")
             
             for log_scale in LOG_SCALES:
