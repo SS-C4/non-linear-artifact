@@ -1,5 +1,5 @@
-pub type FUNC_TYPE = super::structs::KeplerWitness;
-pub global NUM_INPUTS: u32 = 1;
+pub type FUNC_TYPE = super::structs::BancorWitness;
+pub global NUM_INPUTS: u32 = 10;
 pub global LOG_S: u32 = 64;
 pub global S: Field = 18446744073709551616;
 pub global S_sq: Field = 340282366920938463463374607431768211456;

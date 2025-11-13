@@ -16,7 +16,8 @@ function_map = {
     "softmax": "SoftmaxWitness",
     "gelu": "GeluWitness",
     "erf": "ErfWitness",
-    "kepler": "KeplerWitness"
+    "kepler": "KeplerWitness",
+    "bancor": "BancorWitness"
 }
 
 def quantize(value, scale):
@@ -153,6 +154,10 @@ if __name__ == "__main__":
             softmax_outputs = [val / sum_exp for val in exp_values]
         elif function == "kepler":
             # Kepler's equation does not have direct x to y mapping here
+            x_input = mpmath.mpf(0)
+            y_input = mpmath.mpf(0)
+        elif function == "bancor":
+            # Bancor formula does not have direct x to y mapping here
             x_input = mpmath.mpf(0)
             y_input = mpmath.mpf(0)
         else:
@@ -598,6 +603,64 @@ if __name__ == "__main__":
                     "cos_witness": cos_witness,
                     "selector": str(selector),
                     "cos_E_shifted": str(quantize(cos_E_shifted, scale) % field_order)
+                }
+            })
+
+        elif function == "bancor":
+            # Sample S,R,E,F
+            S = mpmath.mpf(mpmath.rand())
+            R = mpmath.mpf(mpmath.rand())
+            E = mpmath.mpf(mpmath.rand()) * R
+            F = mpmath.mpf(mpmath.rand())
+
+            pow_input = (R + E) / R
+            pow_output = mpmath.power(pow_input, F)
+
+            T = S * (pow_output - mpmath.mpf(1))
+
+            mult_terms_1 = []
+            mult_terms_2 = []
+            for r in roots:
+                r = mpmath.mpf(r)
+                mult_term_1 = pow_output * r
+                mult_term_2 = pow_input * r
+                mult_terms_1.append(quantize(mult_term_1, scale) % field_order)
+                mult_terms_2.append(quantize(mult_term_2, scale) % field_order)
+
+            gl_inverses_1 = []
+            gl_inverses_2 = []
+            for r in roots:
+                r = mpmath.mpf(r)
+                gl_inverse_1 = (mpmath.mpf(1) - pow_output) / (r - pow_output * r + pow_output + mpmath.mpf(1))
+                gl_inverse_2 = F * (mpmath.mpf(1) - pow_input) / (r - pow_input * r + pow_input + mpmath.mpf(1))
+                gl_inverses_1.append(quantize(gl_inverse_1, scale) % field_order)
+                gl_inverses_2.append(quantize(gl_inverse_2, scale) % field_order)
+
+            pow_wit = {
+                "denom_inverses_1": [str(v) for v in gl_inverses_1],
+                "denom_inverses_2": [str(v) for v in gl_inverses_2],
+                "mult_terms_1": [str(v) for v in mult_terms_1],
+                "mult_terms_2": [str(v) for v in mult_terms_2],
+            }
+
+            gl_wits.append({
+                "inp_struct": {
+                    "x": "0",
+                    "y": "0",
+                    "vec_x": ["0"],
+                    "vec_y": ["0"],
+                    "k": str(quantize(F, scale))
+                },
+                "wit_struct": {
+                    "S_supply": str(quantize(S, scale)),
+                    "R_reserve": str(quantize(R, scale)),
+                    "E_payment": str(quantize(E, scale)),
+                    "F_reserve_ratio": str(quantize(F, scale)),
+                    "T_tokens": str(quantize(T, scale)),
+
+                    "pow_input": str(quantize(pow_input, scale)),
+                    "pow_output": str(quantize(pow_output, scale)),
+                    "pow_wit": pow_wit
                 }
             })
 

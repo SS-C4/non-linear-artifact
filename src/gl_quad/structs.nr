@@ -127,6 +127,18 @@ pub struct KeplerWitness {
     pub cos_witness: CosineWitness,
 }
 
+// Macro Benchmark -- Bancor's formula
+pub struct BancorWitness {
+    pub S_supply: Field,
+    pub R_reserve: Field,
+    pub E_payment: Field,
+    pub F_reserve_ratio: Field,
+    pub T_tokens: Field,
+
+    pub pow_input: Field,
+    pub pow_output: Field,
+    pub pow_wit: PowerWitness,
+}
  
 // Implementations
 impl GLFunction for ExponentialWitness {
@@ -753,6 +765,67 @@ impl GLFunction for KeplerWitness {
         // Check y = b * sin_E
         let error = self.y * S - self.b * self.sin_E + 4*S;
         error.assert_max_bit_size::<LOG_S + 3>();
+
+    }
+}
+
+impl GLFunction for BancorWitness {
+    fn check_y_bound(self, inp: Input) {
+        self.pow_wit.check_y_bound(Input {
+            x: self.pow_input,
+            y: self.pow_output,
+            vec_x: inp.vec_x,
+            vec_y: inp.vec_y,
+            k: inp.k,
+        });
+    }
+
+    fn check_ratio(self, inp: Input) {
+        self.pow_wit.check_ratio(Input {
+            x: self.pow_input,
+            y: self.pow_output,
+            vec_x: inp.vec_x,
+            vec_y: inp.vec_y,
+            k: inp.k,
+        });
+    }
+
+    fn check_inverse(self, inp: Input) {
+        self.pow_wit.check_inverse(Input {
+            x: self.pow_input,
+            y: self.pow_output,
+            vec_x: inp.vec_x,
+            vec_y: inp.vec_y,
+            k: inp.k,
+        });
+    }
+
+    fn check_sum(self, inp: Input) {
+        self.pow_wit.check_sum(Input {
+            x: self.pow_input,
+            y: self.pow_output,
+            vec_x: inp.vec_x,
+            vec_y: inp.vec_y,
+            k: inp.k,
+        });
+    }
+
+    fn check_mult(self, inp: Input) {
+        self.pow_wit.check_mult(Input {
+            x: self.pow_input,
+            y: self.pow_output,
+            vec_x: inp.vec_x,
+            vec_y: inp.vec_y,
+            k: inp.k,
+        });
+
+        // Check pow_input = (R + E) / R
+        let error = self.pow_input * self.R_reserve - (self.E_payment + self.R_reserve) * S + 8*S;
+        error.assert_max_bit_size::<LOG_S + 4>();
+
+        // Check T_tokens = S_supply * (pow_output - 1)
+        let error = self.T_tokens * S - self.S_supply * (self.pow_output - S) + 8*S;
+        error.assert_max_bit_size::<LOG_S + 4>();
 
     }
 }

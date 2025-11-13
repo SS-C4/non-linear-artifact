@@ -15,6 +15,7 @@ function_map = {
     "erf": mpmath.erf,
     "power": mpmath.exp,  
     "kepler": mpmath.cos,
+    "bancor": mpmath.exp,
 }
 
 def quantize(value, scale):
@@ -58,9 +59,9 @@ if __name__ == "__main__":
         print("Usage: python poly_gen.py <function> <num_inputs> <degree> <log_scale>")
         sys.exit(1)
 
-    if func_name not in function_map and func_name != "power" and func_name != "kepler":
+    if func_name not in function_map and func_name != "power" and func_name != "kepler" and func_name != "bancor":
         print(f"Unknown function: {func_name}")
-        print("Available functions: inv_exp, cos, tan, sigmoid, tanh, gelu, erf, power, kepler")
+        print("Available functions: inv_exp, cos, tan, sigmoid, tanh, gelu, erf, power, kepler, bancor")
         sys.exit(1)
 
     func = function_map[func_name]
@@ -77,6 +78,7 @@ if __name__ == "__main__":
         f.write("];\n")
         f.write(f"pub global IS_POWER: bool = {str(func_name == 'power').lower()};\n")
         f.write(f"pub global IS_KEPLER: bool = {str(func_name == 'kepler').lower()};\n")
+        f.write(f"pub global IS_BANCOR: bool = {str(func_name == 'bancor').lower()};\n")
         f.write(f"pub global TWO_PI: Field = {quantize(mpmath.mpf(2) * mpmath.pi, mpmath.power(mpmath.mpf(2), mpmath.mpf(log_scale)))};\n")
         f.write(f"pub global PI: Field = {quantize(mpmath.pi, mpmath.power(mpmath.mpf(2), mpmath.mpf(log_scale)))};\n")
 
@@ -136,6 +138,16 @@ if __name__ == "__main__":
                     "x": str(quantize(x, scale) % field_order),
                     "y": str(quantize(y, scale) % field_order),
                     "selector": str(selector)
+                },
+                "bancor_witness": {
+                    "S_supply": "0",
+                    "R_reserve": "0",
+                    "E_payment": "0",
+                    "F_reserve_ratio": "0",
+                    "T_tokens": "0",
+                    "pow_input": "0",
+                    "pow_output": "0",
+                    "pow_intermediates": ["0" for _ in range(degree + 1)]
                 }
             })
 
@@ -182,7 +194,110 @@ if __name__ == "__main__":
                 "log_x": str(log_x_quantized % field_order),
                 "k_log_x": str(k_log_x_quantized % field_order),
                 "intermediates_2": [str(val) for val in intermediates_2],
-                "kepler_witness": {}
+                "kepler_witness": {
+                    "P_orbit": "0",
+                    "dt": "0",
+                    "a": "0",
+                    "a_sq": "0",
+                    "sqrt_1_m_e2": "0",
+                    "b": "0",
+                    "E": "0",
+                    "M": "0",
+                    "e": "0",
+                    "sin_E": "0",
+                    "cos_E": "0",
+                    "cos_E_shifted": "0",
+                    "x": "0",
+                    "y": "0",
+                    "selector": "0"
+                },
+                "bancor_witness": {
+                    "S_supply": "0",
+                    "R_reserve": "0",
+                    "E_payment": "0",
+                    "F_reserve_ratio": "0",
+                    "T_tokens": "0",
+                    "pow_input": "0",
+                    "pow_output": "0",
+                    "pow_intermediates": ["0" for _ in range(degree + 1)]
+                }
+            })
+
+        with open("Prover.toml", "r+") as f:
+            toml_data = toml.load(f)
+            toml_data["poly_wits"] = poly_wits
+            f.seek(0)
+            toml.dump(toml_data, f)
+            f.truncate()
+
+    elif func_name == "bancor":
+        scale = mpmath.power(mpmath.mpf(2), mpmath.mpf(log_scale))
+        for i in range(num_inputs):
+            # Sample S,R,E,F
+            S = mpmath.mpf(mpmath.rand())
+            R = mpmath.mpf(mpmath.rand())
+            E = mpmath.mpf(mpmath.rand()) * R
+            F = mpmath.mpf(mpmath.rand())
+
+            pow_input = (R + E) / R
+            pow_output = mpmath.power(pow_input, F)
+
+            T = S * (pow_output - mpmath.mpf(1))
+
+            # Generate intermediates for the power approximation using exp(F * log(pow_input))
+            # This is the same as the power case: x^k = exp(k * log(x))
+            log_pow_input = mpmath.log(pow_input)
+            F_log_pow_input = F * log_pow_input
+
+            # intermediates for log(pow_input) powers
+            intermediates = []
+            for j in range(degree + 1):
+                x_power = mpmath.power(log_pow_input, mpmath.mpf(j))
+                x_power_quantized = quantize(x_power, scale)
+                intermediates.append(x_power_quantized % field_order)
+
+            # intermediates_2 for F * log(pow_input) powers
+            intermediates_2 = []
+            for j in range(degree + 1):
+                x_power = mpmath.power(F_log_pow_input, mpmath.mpf(j))
+                x_power_quantized = quantize(x_power, scale)
+                intermediates_2.append(x_power_quantized % field_order)
+
+            poly_wits.append({
+                "x": "0",
+                "y": "0",
+                "intermediates": [str(val) for val in intermediates],
+                "k": str(quantize(F, scale) % field_order),
+                "log_x": str(quantize(log_pow_input, scale) % field_order),
+                "k_log_x": str(quantize(F_log_pow_input, scale) % field_order),
+                "intermediates_2": [str(val) for val in intermediates_2],
+                "kepler_witness": {
+                    "P_orbit": "0",
+                    "dt": "0",
+                    "a": "0",
+                    "a_sq": "0",
+                    "sqrt_1_m_e2": "0",
+                    "b": "0",
+                    "E": "0",
+                    "M": "0",
+                    "e": "0",
+                    "sin_E": "0",
+                    "cos_E": "0",
+                    "cos_E_shifted": "0",
+                    "x": "0",
+                    "y": "0",
+                    "selector": "0"
+                },
+                "bancor_witness": {
+                    "S_supply": str(quantize(S, scale) % field_order),
+                    "R_reserve": str(quantize(R, scale) % field_order),
+                    "E_payment": str(quantize(E, scale) % field_order),
+                    "F_reserve_ratio": str(quantize(F, scale) % field_order),
+                    "T_tokens": str(quantize(T, scale) % field_order),
+                    "pow_input": str(quantize(pow_input, scale) % field_order),
+                    "pow_output": str(quantize(pow_output, scale) % field_order),
+                    "pow_intermediates": [str(val) for val in intermediates_2]
+                }
             })
 
         with open("Prover.toml", "r+") as f:
@@ -215,7 +330,33 @@ if __name__ == "__main__":
                 "log_x": "0",
                 "k_log_x": "0",
                 "intermediates_2": ["0" for _ in range(degree + 1)],
-                "kepler_witness": {}
+                "kepler_witness": {
+                    "P_orbit": "0",
+                    "dt": "0",
+                    "a": "0",
+                    "a_sq": "0",
+                    "sqrt_1_m_e2": "0",
+                    "b": "0",
+                    "E": "0",
+                    "M": "0",
+                    "e": "0",
+                    "sin_E": "0",
+                    "cos_E": "0",
+                    "cos_E_shifted": "0",
+                    "x": "0",
+                    "y": "0",
+                    "selector": "0"
+                },
+                "bancor_witness": {
+                    "S_supply": "0",
+                    "R_reserve": "0",
+                    "E_payment": "0",
+                    "F_reserve_ratio": "0",
+                    "T_tokens": "0",
+                    "pow_input": "0",
+                    "pow_output": "0",
+                    "pow_intermediates": ["0" for _ in range(degree + 1)]
+                }
             })
 
         with open("Prover.toml", "r+") as f:

@@ -1,6 +1,6 @@
 pub mod constants;
 
-use constants::{LOG_SCALE, SCALE, NUM_COEFFS, DENOM_COEFFS, DEGREE, IS_POWER, IS_KEPLER, TWO_PI, PI};
+use constants::{LOG_SCALE, SCALE, NUM_COEFFS, DENOM_COEFFS, DEGREE, IS_POWER, IS_KEPLER, IS_BANCOR, TWO_PI, PI};
 
 pub struct KeplerWitness {
     pub P_orbit: Field,
@@ -21,6 +21,18 @@ pub struct KeplerWitness {
     pub selector: Field,
 }
 
+pub struct BancorWitness {
+    pub S_supply: Field,
+    pub R_reserve: Field,
+    pub E_payment: Field,
+    pub F_reserve_ratio: Field,
+    pub T_tokens: Field,
+
+    pub pow_input: Field,
+    pub pow_output: Field,
+    pub pow_intermediates: [Field; DEGREE + 1],
+}
+
 pub struct PadeWitness {
     // Statement
     x: Field, // Input value
@@ -39,6 +51,9 @@ pub struct PadeWitness {
 
     // For Kepler
     kepler_witness: KeplerWitness,
+
+    // For Bancor
+    bancor_witness: BancorWitness,
 }
 
 /// Multiplies two quantized values and checks that
@@ -189,6 +204,75 @@ pub fn check_pade_approx(wit: PadeWitness) {
         error_2.assert_max_bit_size::<LOG_SCALE + 2>();
 
         // Check that k_log_x = k * log_x
+        check_quantized_mult(wit.k, wit.log_x, wit.k_log_x);
+    }
+
+    else if IS_BANCOR {
+        let bancor_wit = wit.bancor_witness;
+
+        // Check pow_input = (R + E) / R
+        let error = bancor_wit.pow_input * bancor_wit.R_reserve - (bancor_wit.E_payment + bancor_wit.R_reserve) * SCALE + 8*SCALE;
+        error.assert_max_bit_size::<LOG_SCALE + 4>();
+
+        // Check T_tokens = S_supply * (pow_output - 1)
+        let error = bancor_wit.T_tokens * SCALE - bancor_wit.S_supply * (bancor_wit.pow_output - SCALE) + 8*SCALE;
+        error.assert_max_bit_size::<LOG_SCALE + 4>();
+
+        // Now do the same as the power case: pow_input^F = exp(F * log(pow_input))
+
+        // Check powers for first exponent: log(pow_input)
+        check_powers(wit.log_x, wit.intermediates);
+
+        // Reconstruct pade approximation numerator for first exponent
+        let mut num = 0;
+        for i in 0..DEGREE + 1 {
+            let coeff = NUM_COEFFS[i];
+            let term = wit.intermediates[i] * coeff;
+            num += term;
+        }
+
+        // Reconstruct pade approximation denominator for first exponent
+        let mut denom = 0;
+        for i in 0..DEGREE + 1 {
+            let coeff = DENOM_COEFFS[i];
+            let term = wit.intermediates[i] * coeff;
+            denom += term;
+        }
+
+        // Check rescaled denominator for first exponent
+        check_quantized_mult(denom, 1, wit.denom_rescaled);
+
+        // Check that approximation is close to pow_input
+        let error = bancor_wit.pow_input * wit.denom_rescaled - num + 2 * SCALE;
+        error.assert_max_bit_size::<LOG_SCALE + 2>();
+
+        // Check powers for second exponent: F * log(pow_input)
+        check_powers(wit.k_log_x, wit.intermediates_2);
+
+        // Reconstruct pade approximation numerator for second exponent
+        let mut num_2 = 0;
+        for i in 0..DEGREE + 1 {
+            let coeff = NUM_COEFFS[i];
+            let term = wit.intermediates_2[i] * coeff;
+            num_2 += term;
+        }
+
+        // Reconstruct pade approximation denominator for second exponent
+        let mut denom_2 = 0;
+        for i in 0..DEGREE + 1 {
+            let coeff = DENOM_COEFFS[i];
+            let term = wit.intermediates_2[i] * coeff;
+            denom_2 += term;
+        }
+
+        // Check rescaled denominator for second exponent
+        check_quantized_mult(denom_2, 1, wit.denom_rescaled_2);
+
+        // Check that approximation is close to pow_output
+        let error_2 = bancor_wit.pow_output * wit.denom_rescaled_2 - num_2 + 2 * SCALE;
+        error_2.assert_max_bit_size::<LOG_SCALE + 2>();
+
+        // Check that k_log_x = k * log_x (wit.k = F, wit.k_log_x = F * log(pow_input))
         check_quantized_mult(wit.k, wit.log_x, wit.k_log_x);
     }
 
