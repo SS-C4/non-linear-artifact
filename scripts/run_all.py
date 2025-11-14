@@ -28,28 +28,28 @@ LOG_SCALES = [16, 32, 64, 120]
 EXPERIMENTS = {
     "inv_exp": {
         "poly": {
-            16: ["inv_exp", NUM_INPUTS, 5, 16],
-            32: ["inv_exp", NUM_INPUTS, 10, 32],
-            64: ["inv_exp", NUM_INPUTS, 18, 64],
-            120: ["inv_exp", NUM_INPUTS, 31, 120],
+            16: ["inv_exp", NUM_INPUTS, 5, 16],  # Optimal
+            32: ["inv_exp", NUM_INPUTS, 13, 32],  # Optimal (was 10)
+            64: ["inv_exp", NUM_INPUTS, 21, 64],  # Optimal (was 18)
+            120: ["inv_exp", NUM_INPUTS, 33, 120],  # Optimal (was 31)
         },
         "pade": {
-            16: ["inv_exp", NUM_INPUTS, 3, 16],
-            32: ["inv_exp", NUM_INPUTS, 5, 32],
-            64: ["inv_exp", NUM_INPUTS, 8, 64],
-            120: ["inv_exp", NUM_INPUTS, 14, 120],
+            16: ["inv_exp", NUM_INPUTS, 3, 16],  # Optimal
+            32: ["inv_exp", NUM_INPUTS, 5, 32],  # Optimal
+            64: ["inv_exp", NUM_INPUTS, 8, 64],  # Optimal
+            120: ["inv_exp", NUM_INPUTS, 16, 120],  # Fixed - was 13 (failed)
         },
         "pwl": {
-            16: ["inv_exp", NUM_INPUTS, 0.0, 1.0, 5, 16],
-            32: ["inv_exp", NUM_INPUTS, 0.0, 1.0, 13, 32],
-            64: ["inv_exp", NUM_INPUTS, 0.0, 1.0, 13, 64],
-            120: ["inv_exp", NUM_INPUTS, 0.0, 1.0, 13, 120],
+            16: ["inv_exp", NUM_INPUTS, 0.0, 1.0, 5, 16],  # Optimal
+            32: ["inv_exp", NUM_INPUTS, 0.0, 1.0, 13, 32],  # Optimal
+            64: ["inv_exp", NUM_INPUTS, 0.0, 1.0, 13, 64],  # No optimal found, keeping original
+            120: ["inv_exp", NUM_INPUTS, 0.0, 1.0, 13, 120],  # No optimal found, keeping original
         },
         "gl_quad": {
-            16: ["inv_exp", NUM_INPUTS, 4, 16],
-            32: ["inv_exp", NUM_INPUTS, 8, 32],
-            64: ["inv_exp", NUM_INPUTS, 16, 64],
-            120: ["inv_exp", NUM_INPUTS, 30, 120],
+            16: ["inv_exp", NUM_INPUTS, 4, 16],  # Optimal
+            32: ["inv_exp", NUM_INPUTS, 8, 32],  # Optimal
+            64: ["inv_exp", NUM_INPUTS, 16, 64],  # Optimal
+            120: ["inv_exp", NUM_INPUTS, 30, 120],  # Optimal
         },
         "lookup": {
             16: ["inv_exp", NUM_INPUTS, 8, 16],
@@ -60,28 +60,28 @@ EXPERIMENTS = {
     },
     "sigmoid": {
         "poly": {
-            16: ["sigmoid", NUM_INPUTS, 3, 16],
-            32: ["sigmoid", NUM_INPUTS, 13, 32],
-            64: ["sigmoid", NUM_INPUTS, 33, 64],
-            120: ["sigmoid", NUM_INPUTS, 65, 120],
+            16: ["sigmoid", NUM_INPUTS, 5, 16],  # Optimal (was 3)
+            32: ["sigmoid", NUM_INPUTS, 13, 32],  # Optimal
+            64: ["sigmoid", NUM_INPUTS, 33, 64],  # Optimal
+            120: ["sigmoid", NUM_INPUTS, 69, 120],  # Optimal (was 65)
         },
         "pade": {
-            16: ["sigmoid", NUM_INPUTS, 3, 16],
-            32: ["sigmoid", NUM_INPUTS, 5, 32],
-            64: ["sigmoid", NUM_INPUTS, 8, 64],
-            120: ["sigmoid", NUM_INPUTS, 13, 120],
+            16: ["sigmoid", NUM_INPUTS, 3, 16],  # Optimal
+            32: ["sigmoid", NUM_INPUTS, 5, 32],  # Optimal
+            64: ["sigmoid", NUM_INPUTS, 8, 64],  # Optimal
+            120: ["sigmoid", NUM_INPUTS, 13, 120],  # Optimal
         },
         "pwl": {
-            16: ["sigmoid", NUM_INPUTS, 0.0, 1.0, 3, 16],
-            32: ["sigmoid", NUM_INPUTS, 0.0, 1.0, 11, 32],
-            64: ["sigmoid", NUM_INPUTS, 0.0, 1.0, 13, 64],
-            120: ["sigmoid", NUM_INPUTS, 0.0, 1.0, 13, 120],
+            16: ["sigmoid", NUM_INPUTS, 0.0, 1.0, 3, 16],  # Optimal
+            32: ["sigmoid", NUM_INPUTS, 0.0, 1.0, 11, 32],  # Optimal
+            64: ["sigmoid", NUM_INPUTS, 0.0, 1.0, 13, 64],  # No optimal found, keeping original
+            120: ["sigmoid", NUM_INPUTS, 0.0, 1.0, 13, 120],  # No optimal found, keeping original
         },
         "gl_quad": {
-            16: ["sigmoid", NUM_INPUTS, 4, 16],
-            32: ["sigmoid", NUM_INPUTS, 8, 32],
-            64: ["sigmoid", NUM_INPUTS, 16, 64],
-            120: ["sigmoid", NUM_INPUTS, 29, 120],
+            16: ["sigmoid", NUM_INPUTS, 4, 16],  # Optimal
+            32: ["sigmoid", NUM_INPUTS, 8, 32],  # Optimal
+            64: ["sigmoid", NUM_INPUTS, 16, 64],  # Optimal
+            120: ["sigmoid", NUM_INPUTS, 29, 120],  # Optimal
         },
         "lookup": {
             16: ["sigmoid", NUM_INPUTS, 8, 16],
@@ -92,28 +92,28 @@ EXPERIMENTS = {
     },
     "gelu": {
         "poly": {
-            16: ["gelu", NUM_INPUTS, 6, 16],
-            32: ["gelu", NUM_INPUTS, 16, 32],
-            64: ["gelu", NUM_INPUTS, 38, 64],
-            120: ["gelu", NUM_INPUTS, 76, 120],
+            16: ["gelu", NUM_INPUTS, 9, 16],  # Optimal (was 6)
+            32: ["gelu", NUM_INPUTS, 17, 32],  # Optimal (was 16)
+            64: ["gelu", NUM_INPUTS, 41, 64],  # Optimal (was 38)
+            120: ["gelu", NUM_INPUTS, 77, 120],  # Optimal (was 76)
         },
         "pade": {
-            16: ["gelu", NUM_INPUTS, 5, 16],
-            32: ["gelu", NUM_INPUTS, 8, 32],
-            64: ["gelu", NUM_INPUTS, 15, 64],
-            120: ["gelu", NUM_INPUTS, 25, 120],
+            16: ["gelu", NUM_INPUTS, 5, 16],  # Optimal
+            32: ["gelu", NUM_INPUTS, 8, 32],  # Optimal
+            64: ["gelu", NUM_INPUTS, 13, 64],  # Optimal (was 15)
+            120: ["gelu", NUM_INPUTS, 24, 120],  # Optimal (was 25)
         },
         "pwl": {
-            16: ["gelu", NUM_INPUTS, 0.0, 1.0, 5, 16],
-            32: ["gelu", NUM_INPUTS, 0.0, 1.0, 13, 32],
-            64: ["gelu", NUM_INPUTS, 0.0, 1.0, 13, 64],
-            120: ["gelu", NUM_INPUTS, 0.0, 1.0, 13, 120],
+            16: ["gelu", NUM_INPUTS, 0.0, 1.0, 5, 16],  # Optimal
+            32: ["gelu", NUM_INPUTS, 0.0, 1.0, 13, 32],  # Optimal
+            64: ["gelu", NUM_INPUTS, 0.0, 1.0, 13, 64],  # No optimal found, keeping original
+            120: ["gelu", NUM_INPUTS, 0.0, 1.0, 13, 120],  # No optimal found, keeping original
         },
         "gl_quad": {
-            16: ["gelu", NUM_INPUTS, 5, 16],
-            32: ["gelu", NUM_INPUTS, 11, 32],
-            64: ["gelu", NUM_INPUTS, 23, 64],
-            120: ["gelu", NUM_INPUTS, 43, 120],
+            16: ["gelu", NUM_INPUTS, 6, 16],  # Optimal (was 5)
+            32: ["gelu", NUM_INPUTS, 12, 32],  # Optimal (was 11)
+            64: ["gelu", NUM_INPUTS, 24, 64],  # Fixed - was 23 (failed)
+            120: ["gelu", NUM_INPUTS, 44, 120],  # Optimal (was 43)
         },
         "lookup": {
             16: ["gelu", NUM_INPUTS, 8, 16],
@@ -124,28 +124,28 @@ EXPERIMENTS = {
     },
     "erf": {
         "poly": {
-            16: ["erf", NUM_INPUTS, 9, 16],
-            32: ["erf", NUM_INPUTS, 19, 32],
-            64: ["erf", NUM_INPUTS, 35, 64],
-            120: ["erf", NUM_INPUTS, 59, 120],
+            16: ["erf", NUM_INPUTS, 9, 16],  # Optimal
+            32: ["erf", NUM_INPUTS, 21, 32],  # Optimal (was 19)
+            64: ["erf", NUM_INPUTS, 37, 64],  # Optimal (was 35)
+            120: ["erf", NUM_INPUTS, 61, 120],  # Optimal (was 59)
         },
         "pade": {
-            16: ["erf", NUM_INPUTS, 5, 16],  # Using 5 from first file (6 from second file also works)
-            32: ["erf", NUM_INPUTS, 10, 32],  # Using 9 from second file (10 from first also works)
-            64: ["erf", NUM_INPUTS, 17, 64],
-            120: ["erf", NUM_INPUTS, 26, 120],
+            16: ["erf", NUM_INPUTS, 5, 16],  # Optimal
+            32: ["erf", NUM_INPUTS, 10, 32],  # Optimal
+            64: ["erf", NUM_INPUTS, 17, 64],  # Optimal
+            120: ["erf", NUM_INPUTS, 26, 120],  # Optimal
         },
         "pwl": {
-            16: ["erf", NUM_INPUTS, 0.0, 1.0, 5, 16],
-            32: ["erf", NUM_INPUTS, 0.0, 1.0, 13, 32],
-            64: ["erf", NUM_INPUTS, 0.0, 1.0, 13, 64],
-            120: ["erf", NUM_INPUTS, 0.0, 1.0, 13, 120],
+            16: ["erf", NUM_INPUTS, 0.0, 1.0, 5, 16],  # Optimal
+            32: ["erf", NUM_INPUTS, 0.0, 1.0, 13, 32],  # Optimal
+            64: ["erf", NUM_INPUTS, 0.0, 1.0, 13, 64],  # No optimal found, keeping original
+            120: ["erf", NUM_INPUTS, 0.0, 1.0, 13, 120],  # No optimal found, keeping original
         },
         "gl_quad": {
-            16: ["erf", NUM_INPUTS, 3, 16],
-            32: ["erf", NUM_INPUTS, 8, 32],
-            64: ["erf", NUM_INPUTS, 16, 64],
-            120: ["erf", NUM_INPUTS, 29, 120],
+            16: ["erf", NUM_INPUTS, 4, 16],  # Fixed - was 3 (failed)
+            32: ["erf", NUM_INPUTS, 8, 32],  # Optimal
+            64: ["erf", NUM_INPUTS, 16, 64],  # Fixed - was 15 (failed)
+            120: ["erf", NUM_INPUTS, 30, 120],  # Fixed - was 28 (failed)
         },
         "lookup": {
             16: ["erf", NUM_INPUTS, 16, 16],
@@ -156,28 +156,28 @@ EXPERIMENTS = {
     },
     "tanh": {
         "poly": {
-            16: ["tanh", NUM_INPUTS, 16, 16],  
-            32: ["tanh", NUM_INPUTS, 41, 32],  
-            64: ["tanh", NUM_INPUTS, 85, 64],  
-            120: ["tanh", NUM_INPUTS, 150, 120], 
+            16: ["tanh", NUM_INPUTS, 13, 16],  # Optimal (was 16)
+            32: ["tanh", NUM_INPUTS, 37, 32],  # Optimal (was 41)
+            64: ["tanh", NUM_INPUTS, 85, 64],  # Optimal
+            120: ["tanh", NUM_INPUTS, 150, 120],  # No optimal found, keeping original
         },
         "pade": {
-            16: ["tanh", NUM_INPUTS, 4, 16],
-            32: ["tanh", NUM_INPUTS, 8, 32], 
-            64: ["tanh", NUM_INPUTS, 10, 64],
-            120: ["tanh", NUM_INPUTS, 16, 120],
+            16: ["tanh", NUM_INPUTS, 4, 16],  # Optimal
+            32: ["tanh", NUM_INPUTS, 6, 32],  # Optimal (was 8)
+            64: ["tanh", NUM_INPUTS, 10, 64],  # Optimal
+            120: ["tanh", NUM_INPUTS, 16, 120],  # Optimal
         },
         "pwl": {
-            16: ["tanh", NUM_INPUTS, 0.0, 1.0, 5, 16],
-            32: ["tanh", NUM_INPUTS, 0.0, 1.0, 13, 32],
-            64: ["tanh", NUM_INPUTS, 0.0, 1.0, 13, 64],
-            120: ["tanh", NUM_INPUTS, 0.0, 1.0, 13, 120],
+            16: ["tanh", NUM_INPUTS, 0.0, 1.0, 5, 16],  # Optimal
+            32: ["tanh", NUM_INPUTS, 0.0, 1.0, 13, 32],  # Optimal
+            64: ["tanh", NUM_INPUTS, 0.0, 1.0, 13, 64],  # No optimal found, keeping original
+            120: ["tanh", NUM_INPUTS, 0.0, 1.0, 13, 120],  # No optimal found, keeping original
         },
         "gl_quad": {
-            16: ["tanh", NUM_INPUTS, 7, 16],
-            32: ["tanh", NUM_INPUTS, 14, 32],
-            64: ["tanh", NUM_INPUTS, 28, 64],
-            120: ["tanh", NUM_INPUTS, 43, 120],
+            16: ["tanh", NUM_INPUTS, 7, 16],  # Optimal
+            32: ["tanh", NUM_INPUTS, 14, 32],  # Optimal
+            64: ["tanh", NUM_INPUTS, 28, 64],  # Optimal
+            120: ["tanh", NUM_INPUTS, 56, 120],  # Fixed - was 43 (failed)
         },
         "lookup": {
             16: ["tanh", NUM_INPUTS, 8, 16],
@@ -188,28 +188,28 @@ EXPERIMENTS = {
     },
     "tan": {
         "poly": {
-            16: ["tan", NUM_INPUTS, 16, 16],
-            32: ["tan", NUM_INPUTS, 38, 32],
-            64: ["tan", NUM_INPUTS, 60, 64],
-            120: ["tan", NUM_INPUTS, 80, 120],
+            16: ["tan", NUM_INPUTS, 17, 16],  # Optimal (was 16)
+            32: ["tan", NUM_INPUTS, 37, 32],  # Optimal (was 38)
+            64: ["tan", NUM_INPUTS, 90, 64],  # Fixed - was 81 (failed)
+            120: ["tan", NUM_INPUTS, 80, 120],  # No optimal found, keeping original (OK to fail)
         },
         "pade": {
-            16: ["tan", NUM_INPUTS, 4, 16],
-            32: ["tan", NUM_INPUTS, 8, 32],
-            64: ["tan", NUM_INPUTS, 10, 64],
-            120: ["tan", NUM_INPUTS, 16, 120],
+            16: ["tan", NUM_INPUTS, 4, 16],  # Optimal
+            32: ["tan", NUM_INPUTS, 7, 32],  # Optimal (was 8)
+            64: ["tan", NUM_INPUTS, 11, 64],  # Optimal (was 10)
+            120: ["tan", NUM_INPUTS, 16, 120],  # Optimal
         },
         "pwl": {
-            16: ["tan", NUM_INPUTS, 0.0, 0.78, 5, 16],
-            32: ["tan", NUM_INPUTS, 0.0, 0.78, 14, 32],
-            64: ["tan", NUM_INPUTS, 0.0, 0.78, 14, 64],
-            120: ["tan", NUM_INPUTS, 0.0, 0.78, 14, 120],
+            16: ["tan", NUM_INPUTS, 0.0, 0.78, 7, 16],  # Optimal (was 5)
+            32: ["tan", NUM_INPUTS, 0.0, 0.78, 14, 32],  # No optimal found, keeping original
+            64: ["tan", NUM_INPUTS, 0.0, 0.78, 14, 64],  # No optimal found, keeping original
+            120: ["tan", NUM_INPUTS, 0.0, 0.78, 14, 120],  # No optimal found, keeping original
         },
         "gl_quad": {
-            16: ["tan", NUM_INPUTS, 5, 16],
-            32: ["tan", NUM_INPUTS, 10, 32],
-            64: ["tan", NUM_INPUTS, 18, 64],
-            120: ["tan", NUM_INPUTS, 34, 120],
+            16: ["tan", NUM_INPUTS, 4, 16],  # Optimal (was 5)
+            32: ["tan", NUM_INPUTS, 9, 32],  # Optimal (was 10)
+            64: ["tan", NUM_INPUTS, 18, 64],  # Optimal
+            120: ["tan", NUM_INPUTS, 34, 120],  # Optimal
         },
         "lookup": {
             16: ["tan", NUM_INPUTS, 16, 16],  
@@ -220,28 +220,28 @@ EXPERIMENTS = {
     },
     "cos": {
         "poly": {
-            16: ["cos", NUM_INPUTS, 6, 16],
-            32: ["cos", NUM_INPUTS, 11, 32],
-            64: ["cos", NUM_INPUTS, 19, 64],
-            120: ["cos", NUM_INPUTS, 32, 120],
+            16: ["cos", NUM_INPUTS, 5, 16],  # Optimal (was 6)
+            32: ["cos", NUM_INPUTS, 13, 32],  # Optimal (was 11)
+            64: ["cos", NUM_INPUTS, 21, 64],  # Optimal (was 19)
+            120: ["cos", NUM_INPUTS, 33, 120],  # Optimal (was 32)
         },
         "pade": {
-            16: ["cos", NUM_INPUTS, 4, 16],
-            32: ["cos", NUM_INPUTS, 10, 32],
-            64: ["cos", NUM_INPUTS, 10, 64],
-            120: ["cos", NUM_INPUTS, 16, 120],
+            16: ["cos", NUM_INPUTS, 4, 16],  # Optimal
+            32: ["cos", NUM_INPUTS, 6, 32],  # Optimal (was 10)
+            64: ["cos", NUM_INPUTS, 10, 64],  # Optimal
+            120: ["cos", NUM_INPUTS, 16, 120],  # Optimal
         },
         "pwl": {
-            16: ["cos", NUM_INPUTS, 0.0, 1.57, 6, 16],
-            32: ["cos", NUM_INPUTS, 0.0, 1.57, 14, 32],
-            64: ["cos", NUM_INPUTS, 0.0, 1.57, 14, 64],
-            120: ["cos", NUM_INPUTS, 0.0, 1.57, 14, 120],
+            16: ["cos", NUM_INPUTS, 0.0, 1.0, 5, 16],  # Optimal (was 6)
+            32: ["cos", NUM_INPUTS, 0.0, 1.0, 13, 32],  # Optimal (was 14)
+            64: ["cos", NUM_INPUTS, 0.0, 1.0, 14, 64],  # No optimal found, keeping original
+            120: ["cos", NUM_INPUTS, 0.0, 1.0, 14, 120],  # No optimal found, keeping original
         },
         "gl_quad": {
-            16: ["cos", NUM_INPUTS, 5, 16],
-            32: ["cos", NUM_INPUTS, 10, 32],
-            64: ["cos", NUM_INPUTS, 18, 64],
-            120: ["cos", NUM_INPUTS, 34, 120],
+            16: ["cos", NUM_INPUTS, 4, 16],  # Optimal (was 5)
+            32: ["cos", NUM_INPUTS, 9, 32],  # Optimal (was 10)
+            64: ["cos", NUM_INPUTS, 18, 64],  # Optimal
+            120: ["cos", NUM_INPUTS, 34, 120],  # Optimal
         },
         "lookup": {
             16: ["cos", NUM_INPUTS, 16, 16],  # log_base = log_scale for lookup tables
@@ -252,28 +252,28 @@ EXPERIMENTS = {
     },
     "power": {
         "poly": {
-            16: ["power", NUM_INPUTS, 6, 16, 0.745],
-            32: ["power", NUM_INPUTS, 11, 32, 0.745],
-            64: ["power", NUM_INPUTS, 19, 64, 0.745],
-            120: ["power", NUM_INPUTS, 27, 120, 0.745],
+            16: ["power", NUM_INPUTS, 5, 16, 0.876],  # Optimal (was 6, 0.745) - using 0.876 from optimal
+            32: ["power", NUM_INPUTS, 9, 32, 0.876],  # Optimal (was 11, 0.745)
+            64: ["power", NUM_INPUTS, 17, 64, 0.876],  # Optimal (was 19, 0.745)
+            120: ["power", NUM_INPUTS, 29, 120, 0.876],  # Optimal (was 27, 0.745)
         },
         "pade": {
-            16: ["power", NUM_INPUTS, 4, 16, 0.876],
-            32: ["power", NUM_INPUTS, 7, 32, 0.876],
-            64: ["power", NUM_INPUTS, 10, 64, 0.876],
-            120: ["power", NUM_INPUTS, 13, 120, 0.876],
+            16: ["power", NUM_INPUTS, 3, 16, 0.876],  # Optimal (was 4)
+            32: ["power", NUM_INPUTS, 5, 32, 0.876],  # Optimal (was 7)
+            64: ["power", NUM_INPUTS, 8, 64, 0.876],  # Optimal (was 10)
+            120: ["power", NUM_INPUTS, 13, 120, 0.876],  # Optimal
         },
         "pwl": {
-            16: ["power", NUM_INPUTS, 0.0, 1.0, 7, 16, 0.876],
-            32: ["power", NUM_INPUTS, 0.0, 1.0, 14, 32, 0.876],
-            64: ["power", NUM_INPUTS, 0.0, 1.0, 14, 64, 0.876],
-            120: ["power", NUM_INPUTS, 0.0, 1.0, 14, 120, 0.876],
+            16: ["power", NUM_INPUTS, 0.0, 1.0, 7, 16, 0.876],  # No optimal found, keeping original
+            32: ["power", NUM_INPUTS, 0.0, 1.0, 14, 32, 0.876],  # No optimal found, keeping original
+            64: ["power", NUM_INPUTS, 0.0, 1.0, 14, 64, 0.876],  # No optimal found, keeping original
+            120: ["power", NUM_INPUTS, 0.0, 1.0, 14, 120, 0.876],  # No optimal found, keeping original
         },
         "gl_quad": {
-            16: ["power", NUM_INPUTS, 3, 16, 0.876],
-            32: ["power", NUM_INPUTS, 6, 32, 0.876],
-            64: ["power", NUM_INPUTS, 12, 64, 0.876],
-            120: ["power", NUM_INPUTS, 26, 120, 0.876],
+            16: ["power", NUM_INPUTS, 3, 16, 0.876],  # Optimal
+            32: ["power", NUM_INPUTS, 6, 32, 0.876],  # Optimal
+            64: ["power", NUM_INPUTS, 13, 64, 0.876],  # Fixed - was 12 (failed)
+            120: ["power", NUM_INPUTS, 23, 120, 0.876],  # Optimal (was 26)
         },
         "lookup": {
             16: ["power", NUM_INPUTS, 8, 16, 0.876],

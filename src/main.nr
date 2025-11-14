@@ -60,9 +60,9 @@ fn run_pade_experiment(wits: [PadeWitness; PADE_NUM]) {
 // }
 
 // // Main function for GL_QUAD
-fn main(gl_wits: [GLWitness<GL_FUNC_TYPE>; GL_NUM]) {
-    run_gl_quad_experiment(gl_wits);
-}
+// fn main(gl_wits: [GLWitness<GL_FUNC_TYPE>; GL_NUM]) {
+//     run_gl_quad_experiment(gl_wits);
+// }
 
 // // Main function for PWL
 // fn main(pwl_wits: [PWLWitness; PWL_NUM]) {
@@ -75,6 +75,6 @@ fn main(gl_wits: [GLWitness<GL_FUNC_TYPE>; GL_NUM]) {
 // }
 
 // // Main function for PADE
-// fn main(pade_wits: [PadeWitness; PADE_NUM]) {
-//     run_pade_experiment(pade_wits);
-// }
+fn main(pade_wits: [PadeWitness; PADE_NUM]) {
+    run_pade_experiment(pade_wits);
+}

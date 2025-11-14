@@ -14,16 +14,19 @@ EXPERIMENT_MAP = {
 }
 
 def print_usage():
-    print("Usage: python run_prover.py <experiment>")
+    print("Usage: python run_prover.py <experiment> [--execute-only] [--quiet]")
     print("\nExperiments:")
     print("  lookup    - Lookup-based approximation")
     print("  gl_quad   - Gauss-Legendre quadrature")
     print("  pwl       - Piecewise linear approximation")
     print("  poly      - Polynomial approximation")
     print("  pade      - Padé approximation")
+    print("\nOptions:")
+    print("  --execute-only  Only run nargo execute, skip bb prove and verify")
+    print("  --quiet         Quiet mode, minimal output")
     print("\nExample:")
     print("  python run_prover.py lookup")
-    print("  python run_prover.py gl_quad")
+    print("  python run_prover.py gl_quad --execute-only")
     print("\nRun only after creating the witness using scripts/*.py")
 
 def update_main_nr(experiment):
@@ -307,7 +310,19 @@ def main():
         sys.exit(1)
     
     experiment = sys.argv[1].lower()
-    quiet = len(sys.argv) > 2 and sys.argv[2] == "--quiet"
+    
+    # Parse optional flags
+    execute_only = False
+    quiet = False
+    
+    for arg in sys.argv[2:]:
+        if arg == "--execute-only":
+            execute_only = True
+        elif arg == "--quiet":
+            quiet = True
+        elif arg in ["-h", "--help", "help"]:
+            print_usage()
+            sys.exit(0)
     
     if experiment in ["-h", "--help", "help"]:
         print_usage()
@@ -326,6 +341,12 @@ def main():
     # Run nargo execute
     if not run_nargo_execute():
         sys.exit(1)
+    
+    # If execute-only mode, stop here
+    if execute_only:
+        print(f"\n✓ Execution complete for {experiment.upper()}")
+        print("Skipping bb prove and verify (--execute-only mode)")
+        sys.exit(0)
     
     # Run bb prove
     pk_time, prover_time = run_bb_prove()

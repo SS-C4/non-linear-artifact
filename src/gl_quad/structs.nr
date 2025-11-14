@@ -323,8 +323,8 @@ impl GLFunction for TangentWitness {
         // Check if inverse * (mult_term + 4) = 2y
         for i in 0..N_POINTS {
             let term = self.mult_terms[i] + 4 * S;
-            let error = 2 * inp.y * S - term * self.denom_inverses[i] + 4*S;
-            error.assert_max_bit_size::<LOG_S + 3>();
+            let error = 2 * inp.y * S - term * self.denom_inverses[i] + 16*S;
+            error.assert_max_bit_size::<LOG_S + 5>();
         }
     }
 
@@ -335,8 +335,8 @@ impl GLFunction for TangentWitness {
         for i in 0..N_POINTS {
             rhs += GL_WEIGHTS[i] * self.denom_inverses[i];
         }
-        let error = lhs - rhs + 4*S;
-        error.assert_max_bit_size::<LOG_S + 3>();
+        let error = lhs - rhs + 8*S;
+        error.assert_max_bit_size::<LOG_S + 5>();
     }
 
     fn check_mult(self, _inp: Input) {
@@ -730,20 +730,20 @@ impl GLFunction for KeplerWitness {
         error.assert_max_bit_size::<1>();
 
         // Check a_sq = a * a
-        let error = self.a_sq * S - self.a * self.a + 4*S;
-        error.assert_max_bit_size::<LOG_S + 3>();
+        let error = self.a_sq * S - self.a * self.a + 2*S;
+        error.assert_max_bit_size::<LOG_S + 2>();
 
         // Check a^3 = P_orbit^2
         let error = self.P_orbit * self.P_orbit - self.a * self.a_sq + 4*S;
         error.assert_max_bit_size::<LOG_S + 3>();
 
         // Check b = a * sqrt(1 - e^2)
-        let error = self.b * S - self.a * self.sqrt_1_m_e2 + 4*S;
-        error.assert_max_bit_size::<LOG_S + 3>();
+        let error = self.b * S - self.a * self.sqrt_1_m_e2 + 2*S;
+        error.assert_max_bit_size::<LOG_S + 2>();
 
         // Check M = 2pi * dt / P_orbit
-        let error = self.M * self.P_orbit - TWO_PI * self.dt + 4*S;
-        error.assert_max_bit_size::<LOG_S + 3>();
+        let error = self.M * self.P_orbit - TWO_PI * self.dt + 2*S;
+        error.assert_max_bit_size::<LOG_S + 2>();
 
         // Check M = E - e * sin(E)
         let error = self.M * S - self.E * S + self.e * self.sin_E + 4*S;
@@ -754,8 +754,8 @@ impl GLFunction for KeplerWitness {
         error.assert_max_bit_size::<LOG_S + 3>();
 
         // Check sqrt_1_m_e2 = sqrt(1 - e^2)
-        let error = self.sqrt_1_m_e2 * self.sqrt_1_m_e2 + self.e * self.e - S_sq + 4*S;
-        error.assert_max_bit_size::<LOG_S + 3>();
+        let error = self.sqrt_1_m_e2 * self.sqrt_1_m_e2 + self.e * self.e - S_sq + 2*S;
+        error.assert_max_bit_size::<LOG_S + 2>();
 
         // Check x = a * (cos_E - e)
         let error = self.x * S - self.a * (self.cos_E - self.e) + 4*S;

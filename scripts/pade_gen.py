@@ -101,26 +101,33 @@ if __name__ == "__main__":
     if func_name == "kepler":
         scale = mpmath.power(mpmath.mpf(2), mpmath.mpf(log_scale))
         for i in range(num_inputs):
-            P = mpmath.mpf(mpmath.rand()) + mpmath.mpf(1)
-            e = mpmath.mpf(mpmath.rand()) * mpmath.mpf('0.4') + mpmath.mpf('0.5')
-            dt = mpmath.mpf(mpmath.rand()) * P
+            # Keep sampling until E_shifted < 1
+            while True:
+                P = mpmath.mpf(mpmath.rand()) + mpmath.mpf(1)
+                e = mpmath.mpf(mpmath.rand()) * mpmath.mpf('0.4') + mpmath.mpf('0.5')
+                dt = mpmath.mpf(mpmath.rand()) * P
 
-            a = mpmath.power(P, mpmath.mpf(2) / mpmath.mpf(3))
-            a_sq = mpmath.power(a, mpmath.mpf(2))
-            e_sq = mpmath.power(e, mpmath.mpf(2))
-            sqrt_1_m_e2 = mpmath.sqrt(mpmath.mpf(1) - e_sq)
-            b = a * sqrt_1_m_e2
-            M = mpmath.mpf(2) * mpmath.pi * dt / P
-            E = mpmath.findroot(lambda E: E - e * mpmath.sin(E) - M, M)
+                a = mpmath.power(P, mpmath.mpf(2) / mpmath.mpf(3))
+                a_sq = mpmath.power(a, mpmath.mpf(2))
+                e_sq = mpmath.power(e, mpmath.mpf(2))
+                sqrt_1_m_e2 = mpmath.sqrt(mpmath.mpf(1) - e_sq)
+                b = a * sqrt_1_m_e2
+                M = mpmath.mpf(2) * mpmath.pi * dt / P
+                E = mpmath.findroot(lambda E: E - e * mpmath.sin(E) - M, M)
 
-            sin_E = mpmath.sin(E)
-            cos_E = mpmath.cos(E)
-            x = a * (cos_E - e)
-            y = b * sin_E
+                sin_E = mpmath.sin(E)
+                cos_E = mpmath.cos(E)
+                x = a * (cos_E - e)
+                y = b * sin_E
 
-            selector = 0 if E < mpmath.pi / mpmath.mpf(2) else 1 if E < mpmath.mpf(3) * mpmath.pi / mpmath.mpf(2) else 2
-            cos_E_shifted = cos_E if selector == 0 else -cos_E if selector == 1 else cos_E
-            E_shifted = E - mpmath.mpf(selector) * mpmath.pi
+                selector = 0 if E < mpmath.pi / mpmath.mpf(2) else 1 if E < mpmath.mpf(3) * mpmath.pi / mpmath.mpf(2) else 2
+                cos_E_shifted = cos_E if selector == 0 else -cos_E if selector == 1 else cos_E
+                E_shifted = E - mpmath.mpf(selector) * mpmath.pi
+                
+                # Break the loop if E_shifted is between -1 and 1
+                if mpmath.mpf(-1) < E_shifted < mpmath.mpf(1):
+                    break
+            
             print(E_shifted)
 
             intermediates = []

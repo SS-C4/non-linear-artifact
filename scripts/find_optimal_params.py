@@ -33,14 +33,14 @@ EXPERIMENT_CONFIGS = {
         "param_name": "degree",
         "start": 1,
         "max": 100,
-        "step": 5,
+        "step": 4,
         "param_index": 2,  # position in command args
     },
     "pade": {
         "param_name": "degree",
         "start": 1,
         "max": 50,
-        "step": 3,
+        "step": 1,
         "param_index": 2,
     },
     "pwl": {
@@ -54,7 +54,7 @@ EXPERIMENT_CONFIGS = {
         "param_name": "n_points",
         "start": 1,
         "max": 50,
-        "step": 2,
+        "step": 1,
         "param_index": 2,
     },
 }
@@ -72,7 +72,7 @@ def get_base_params(func_name, experiment_type, log_scale):
     """Get base parameters for each experiment type."""
     if experiment_type == "poly":
         if func_name == "power":
-            return [func_name, NUM_INPUTS, None, log_scale, 0.745]  # None = degree to be tested
+            return [func_name, NUM_INPUTS, None, log_scale, 0.876]  # None = degree to be tested
         else:
             return [func_name, NUM_INPUTS, None, log_scale]
     
@@ -85,11 +85,11 @@ def get_base_params(func_name, experiment_type, log_scale):
     elif experiment_type == "pwl":
         # Domain boundaries based on function
         if func_name == "power":
-            return [func_name, NUM_INPUTS, -2.0, 2.0, None, log_scale, 0.876]
+            return [func_name, NUM_INPUTS, 1.0, 2.0, None, log_scale, 0.876]
         elif func_name == "tan":
-            return [func_name, NUM_INPUTS, 0.0, 0.78, None, log_scale]
+            return [func_name, NUM_INPUTS, 0.0, 1.0, None, log_scale]
         elif func_name == "cos":
-            return [func_name, NUM_INPUTS, 0.0, 1.57, None, log_scale]
+            return [func_name, NUM_INPUTS, 0.0, 1.0, None, log_scale]
         else:
             return [func_name, NUM_INPUTS, 0.0, 1.0, None, log_scale]
     
@@ -122,11 +122,11 @@ def run_prover(experiment_type):
     """Run the prover to verify the circuit works."""
     try:
         result = subprocess.run(
-            ["python3", "scripts/run_prover.py", experiment_type, "--quiet"],
+            ["python3", "scripts/run_prover.py", experiment_type, "--execute-only", "--quiet"],
             cwd=Path(__file__).parent.parent,
             capture_output=True,
             text=True,
-            timeout=600
+            timeout=30
         )
         return result.returncode == 0
     except:
