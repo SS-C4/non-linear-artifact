@@ -18,6 +18,14 @@ use poly_approx::{constants::NUM_INPUTS as POLY_NUM, PolyWitness};
 pub mod pade_approx;
 use pade_approx::{constants::NUM_INPUTS as PADE_NUM, PadeWitness};
 
+// Fixed-point addition experiment
+pub mod fp_add;
+use fp_add::{constants::NUM_REPS as FP_ADD_NUM, FPAddWitness};
+
+// Fixed-point multiplication experiment
+pub mod fp_mul;
+use fp_mul::{constants::NUM_REPS as FP_MUL_NUM, FPMulWitness};
+
 // Experiment functions
 #[allow(dead_code)]
 fn run_lookup_experiment(wits: [LookupWitness<LOOKUP_FUNC_TYPE>; LOOKUP_NUM]) {
@@ -54,15 +62,29 @@ fn run_pade_experiment(wits: [PadeWitness; PADE_NUM]) {
     }
 }
 
+#[allow(dead_code)]
+fn run_fp_add_experiment(wits: [FPAddWitness; FP_ADD_NUM]) {
+    for wit in wits {
+        fp_add::check_fp_add(wit);
+    }
+}
+
+#[allow(dead_code)]
+fn run_fp_mul_experiment(wits: [FPMulWitness; FP_MUL_NUM]) {
+    for wit in wits {
+        fp_mul::check_fp_mul(wit);
+    }
+}
+
 // // Main function for LOOKUP
 // fn  main(lookup_wits: [LookupWitness<LOOKUP_FUNC_TYPE>; LOOKUP_NUM]) {
 //     run_lookup_experiment(lookup_wits);
 // }
 
 // // Main function for GL_QUAD
-// fn main(gl_wits: [GLWitness<GL_FUNC_TYPE>; GL_NUM]) {
-//     run_gl_quad_experiment(gl_wits);
-// }
+fn main(gl_wits: [GLWitness<GL_FUNC_TYPE>; GL_NUM]) {
+    run_gl_quad_experiment(gl_wits);
+}
 
 // // Main function for PWL
 // fn main(pwl_wits: [PWLWitness; PWL_NUM]) {
@@ -75,6 +97,16 @@ fn run_pade_experiment(wits: [PadeWitness; PADE_NUM]) {
 // }
 
 // // Main function for PADE
-fn main(pade_wits: [PadeWitness; PADE_NUM]) {
-    run_pade_experiment(pade_wits);
-}
+// fn main(pade_wits: [PadeWitness; PADE_NUM]) {
+//     run_pade_experiment(pade_wits);
+// }
+
+// Main function for FP_ADD
+// fn main(fp_add_wits: [FPAddWitness; FP_ADD_NUM]) {
+//     run_fp_add_experiment(fp_add_wits);
+// }
+
+// // Main function for FP_MUL
+// fn main(fp_mul_wits: [FPMulWitness; FP_MUL_NUM]) {
+//     run_fp_mul_experiment(fp_mul_wits);
+// }

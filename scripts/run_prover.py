@@ -11,22 +11,28 @@ EXPERIMENT_MAP = {
     "pwl": "pwl_wits: [PWLWitness; PWL_NUM]",
     "poly": "poly_wits: [PolyWitness; POLY_NUM]",
     "pade": "pade_wits: [PadeWitness; PADE_NUM]",
+    "fp_add": "fp_add_wits: [FPAddWitness; FP_ADD_NUM]",
+    "fp_mul": "fp_mul_wits: [FPMulWitness; FP_MUL_NUM]",
 }
 
 def print_usage():
-    print("Usage: python run_prover.py <experiment> [--execute-only] [--quiet]")
+    print("Usage: python run_prover.py <experiment> [--execute-only] [--quiet] [--profile-gates]")
     print("\nExperiments:")
     print("  lookup    - Lookup-based approximation")
     print("  gl_quad   - Gauss-Legendre quadrature")
     print("  pwl       - Piecewise linear approximation")
     print("  poly      - Polynomial approximation")
     print("  pade      - Padé approximation")
+    print("  fp_add    - Fixed-point addition")
+    print("  fp_mul    - Fixed-point multiplication")
     print("\nOptions:")
-    print("  --execute-only  Only run nargo execute, skip bb prove and verify")
-    print("  --quiet         Quiet mode, minimal output")
+    print("  --execute-only   Only run nargo execute, skip bb prove and verify")
+    print("  --quiet          Quiet mode, minimal output")
+    print("  --profile-gates  Run noir-profiler to get constraint count (requires nargo compile first)")
     print("\nExample:")
     print("  python run_prover.py lookup")
     print("  python run_prover.py gl_quad --execute-only")
+    print("  python run_prover.py fp_add --profile-gates")
     print("\nRun only after creating the witness using scripts/*.py")
 
 def update_main_nr(experiment):
@@ -50,7 +56,8 @@ def update_main_nr(experiment):
         if "Main function for" in line and line.strip().startswith("//"):
             # Check if this is the experiment we want to enable
             target_exp = experiment.upper().replace("_", "")
-            should_enable = (target_exp in line.upper()) or (experiment == "gl_quad" and "GL_QUAD" in line.upper())
+            line_normalized = line.upper().replace("_", "")
+            should_enable = (target_exp in line_normalized) or (experiment == "gl_quad" and "GL_QUAD" in line.upper())
             
             # Process the next 3 lines (fn main, body, closing brace)
             if i + 1 < len(lines):
@@ -304,6 +311,48 @@ def get_proof_size():
         print(f"✗ Failed: Error getting proof size: {e}")
         return None
 
+def run_profiler_gates():
+    """Run noir-profiler to get constraint count."""
+    print("\nRunning noir-profiler to get gate count...")
+    try:
+        result = subprocess.run([
+            "noir-profiler", "gates",
+            "--artifact-path", "./target/non_linear_approx.json",
+            "--backend-path", "bb",
+            "--output", "./target",
+            "--",
+            "--include_gates_per_opcode"
+        ],
+        cwd=Path(__file__).parent.parent,
+        capture_output=True,
+        text=True,
+        timeout=60
+        )
+        
+        output = result.stdout + result.stderr
+        
+        if result.returncode == 0:
+            print("✓ Gate profiling completed")
+            print("\nOutput:")
+            print(output)
+            return True
+        else:
+            print("✗ noir-profiler failed")
+            print("\nOutput:")
+            print(output)
+            return False
+            
+    except subprocess.TimeoutExpired:
+        print("✗ Failed: noir-profiler timed out after 60 seconds")
+        return False
+    except FileNotFoundError:
+        print("✗ Failed: 'noir-profiler' command not found")
+        print("Install with: cargo install noir-profiler")
+        return False
+    except Exception as e:
+        print(f"✗ Failed: Error running noir-profiler: {e}")
+        return False
+
 def main():
     if len(sys.argv) < 2:
         print_usage()
@@ -314,12 +363,15 @@ def main():
     # Parse optional flags
     execute_only = False
     quiet = False
+    profile_gates = False
     
     for arg in sys.argv[2:]:
         if arg == "--execute-only":
             execute_only = True
         elif arg == "--quiet":
             quiet = True
+        elif arg == "--profile-gates":
+            profile_gates = True
         elif arg in ["-h", "--help", "help"]:
             print_usage()
             sys.exit(0)
@@ -341,6 +393,10 @@ def main():
     # Run nargo execute
     if not run_nargo_execute():
         sys.exit(1)
+    
+    # Run gate profiling if requested
+    if profile_gates:
+        run_profiler_gates()
     
     # If execute-only mode, stop here
     if execute_only:
