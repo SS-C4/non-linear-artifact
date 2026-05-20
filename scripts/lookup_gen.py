@@ -100,7 +100,7 @@ def write_to_constants(func_type, num_inputs, softmax_size, tables, custom_table
             f.write(", ".join(str(x) for x in mult_ops[i]))
             f.write("),\n")
         f.write("];\n")
-        f.write(f"pub global NUM_TABLES: u32 = {len(tables)};\n")
+        f.write(f"pub global NUM_TABLES: u32 = {len(tables) if len(tables) > 0 else 1};\n")
         f.write(f"pub global BASE_POWERS: [Field; {len(tables)}] = [\n")
         for i in range(len(tables)):
             f.write(f"    {base ** i},\n")

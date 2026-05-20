@@ -1,6 +1,6 @@
 # Non-linear Approximations
 
-This project implements and benchmarks various approximation methods for non-linear functions in zero-knowledge circuits using Noir.
+This project implements and benchmarks various approximation methods for non-linear functions in zero-knowledge circuits using Noir. This repository is the reference implementation for the paper https://eprint.iacr.org/2025/2326.
 
 ## Setup
 
@@ -8,8 +8,9 @@ This project implements and benchmarks various approximation methods for non-lin
 # Install Python dependencies
 pip3 install -r requirements.txt
 
-# Install Noir (tested with version 1.0.0.beta.6)
+# Install Noir and Barretenberg (tested with latest stable (1.0.0-beta.21))
 noirup
+bbup
 ```
 
 ## Quick Start
