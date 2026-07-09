@@ -91,9 +91,9 @@ if __name__ == "__main__":
         for coeff in denom:
             f.write(f"    {coeff},\n")
         f.write("];\n")
-        f.write(f"pub global IS_POWER: bool = {str(func_name == "power").lower()};\n")
-        f.write(f"pub global IS_KEPLER: bool = {str(func_name == "kepler").lower()};\n")
-        f.write(f"pub global IS_BANCOR: bool = {str(func_name == "bancor").lower()};\n")
+        f.write(f"pub global IS_POWER: bool = {str(func_name == 'power').lower()};\n")
+        f.write(f"pub global IS_KEPLER: bool = {str(func_name == 'kepler').lower()};\n")
+        f.write(f"pub global IS_BANCOR: bool = {str(func_name == 'bancor').lower()};\n")
         f.write(f"pub global TWO_PI: Field = {quantize(mpmath.mpf(2) * mpmath.pi, mpmath.power(mpmath.mpf(2), mpmath.mpf(log_scale)))};\n")
         f.write(f"pub global PI: Field = {quantize(mpmath.pi, mpmath.power(mpmath.mpf(2), mpmath.mpf(log_scale)))};\n")
 

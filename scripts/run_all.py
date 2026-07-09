@@ -189,7 +189,7 @@ EXPERIMENTS = {
     "tan": {
         "poly": {
             16: ["tan", NUM_INPUTS, 17, 16],  # Optimal (was 16)
-            32: ["tan", NUM_INPUTS, 37, 32],  # Optimal (was 38)
+            32: ["tan", NUM_INPUTS, 39, 32],  # Optimal (was 38)
             64: ["tan", NUM_INPUTS, 90, 64],  # Fixed - was 81 (failed)
             120: ["tan", NUM_INPUTS, 80, 120],  # No optimal found, keeping original (OK to fail)
         },

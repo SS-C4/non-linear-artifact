@@ -4,6 +4,8 @@ This project implements and benchmarks various approximation methods for non-lin
 
 ## Setup
 
+Requires Python 3.13+.
+
 ```bash
 # Install Python dependencies
 pip3 install -r requirements.txt
